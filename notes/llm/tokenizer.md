@@ -9,7 +9,7 @@
     2) vocabulary 中存在较多相似的词；
     3) 面临严重的OOV（Out of vocabulary超出词汇表的词）问题。
 2. sub-word：低频词拆分，高频词不拆分；如高频的boy不拆分，低频的boys拆分为boy和s；
-   方法：WordPiece, Byte-Pair Encoding (BPE), Unigram, SentencePiece
+   方法：Byte-Pair Encoding (BPE), WordPiece, Unigram, SentencePiece
 3. char-level:
 
 ### 1.1 BPE--Byte Pair Encoding(llama, GPT)
@@ -61,22 +61,19 @@ $$
 
 ## 2. comparison
 
-### 2.1 BPE与WordPiece
-WordPiece和BPE（Byte-Pair Encoding）都是常用的无监督分词方法，它们有一些相似之处，但也存在一些差异。
+### 2.1 BPE(Byte-Pair Encoding)与WordPiece
 
 相似点：
-
 1. 分词目标：WordPiece和BPE都旨在将文本分解为子词或字符级别的单位，以便更好地处理未登录词和稀有词，提高模型对复杂词汇和短语的处理能力。
 2. 无监督学习：WordPiece和BPE都是无监督学习方法，不需要依赖外部的标注数据，而是通过分析输入文本自动构建词典。
 
 不同点：
-
 1. 拆分策略：WordPiece采用贪婪的自顶向下的拆分策略，将词汇表中的词分解为更小的子词。它使用最大似然估计来确定最佳的分割点，并通过词频来更新词典。BPE则采用自底向上的拆分策略，通过合并频率最高的词对来构建词典。它使用词频来选择合并的词对，并通过更新词频来更新词典。
 2. 分割粒度：WordPiece通常将词分解为更小的子词，例如将"running"分解为"run"和"##ning"。这些子词通常以"##"前缀表示它们是一个词的一部分。BPE则将词分解为更小的子词或字符级别的单位。它不使用特殊的前缀或后缀来表示子词。
 3. 处理未登录词：WordPiece和BPE在处理未登录词时有所不同。WordPiece通常将未登录词分解为更小的子词，以便模型可以更好地处理它们。而BPE则将未登录词作为单独的词处理，不进行进一步的拆分。
     总体而言，WordPiece和BPE都是有效的分词方法，选择使用哪种方法取决于具体的任务需求和语料特点。
 
-### 2.2 
+### 2.2
 
 ##### 举例 介绍一下 不同 大模型LLMs 的分词方式？
 
@@ -90,7 +87,7 @@ WordPiece和BPE（Byte-Pair Encoding）都是常用的无监督分词方法，�
 
 需要注意的是，不同的大模型LLMs可能采用不同的分词方式，甚至在同一个模型中，可以根据任务和语料库的需求进行调整。这些分词方式的选择会对模型的性能和效果产生影响，因此需要根据具体情况进行选择和调整。
 
-##### 2 介绍一下 不同 大模型LLMs 的分词方式 的区别？
+##### 2 介绍一下不同大模型LLMs的分词方式的区别？
 
 不同的大模型LLMs（Language Models）在分词方式上可能存在一些区别。以下是一些常见的分词方式及其区别：
 
