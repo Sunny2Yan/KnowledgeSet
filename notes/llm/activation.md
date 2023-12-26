@@ -54,7 +54,7 @@ $$GLU(x) = x \cdot sigmoid(W_1 \cdot x)$$
 
 ## 6. swiGLU (llama系列)
 
-$$GLU(x,W_1,W_2,b,c)=\sigma(xW_1+b) \odot (xW_2+c)$$
-$$swiGLU(x,W_1,W_2,b,c,\beta)=swish(xW_1+b) \odot (xW_2+c)$$
+$$GLU(x,W_1,W_2,b,c)=\sigma(xW_1+b) \odot (xW_2+c) \\
+swiGLU(x,W_1,W_2,b,c,\beta)=swish(xW_1+b) \odot (xW_2+c)$$
 
 $\odot$ 为Hadamard积，表示逐位相乘。
