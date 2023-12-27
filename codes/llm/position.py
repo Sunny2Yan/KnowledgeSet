@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import math
 import torch
 import torch.nn as nn
@@ -60,7 +61,8 @@ class LearnedEmbeddings(nn.Module):
         if token_type_ids is None:
             if hasattr(self, "token_type_ids"):
                 buffered_token_type_ids = self.token_type_ids[:, :seq_length]
-                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(input_shape[0], seq_length)
+                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(
+                    input_shape[0], seq_length)
                 token_type_ids = buffered_token_type_ids_expanded
             else:
                 token_type_ids = torch.zeros(
@@ -159,7 +161,7 @@ class LlamaRotaryEmbedding(torch.nn.Module):
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
     x1 = x[..., : x.shape[-1] // 2]
-    x2 = x[..., x.shape[-1] // 2 :]
+    x2 = x[..., x.shape[-1] // 2:]
     return torch.cat((-x2, x1), dim=-1)
 
 
@@ -172,6 +174,90 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed
+
+
+# baichuan
+def _get_interleave(n):
+    def _get_interleave_power_of_2(n):
+        start = 2 ** (-(2 ** -(math.log2(n) - 3)))
+        ratio = start
+        return [start * ratio**i for i in range(n)]
+
+    if math.log2(n).is_integer():
+        return _get_interleave_power_of_2(n)
+    else:
+        closest_power_of_2 = 2 ** math.floor(math.log2(n))
+        return (
+            _get_interleave_power_of_2(closest_power_of_2)
+            + _get_interleave(2 * closest_power_of_2)[0::2][: n - closest_power_of_2]
+        )
+
+def _fill_with_neg_inf(t):
+    """FP16-compatible function that fills a tensor with -inf."""
+    return t.float().fill_(float("-inf")).type_as(t)
+
+def _buffered_future_mask(tensor, maxpos, alibi, attn_heads):
+    _future_mask = torch.triu(_fill_with_neg_inf(torch.zeros([maxpos, maxpos])), 1)
+    _future_mask = _future_mask.unsqueeze(0) + alibi
+    new_future_mask = _future_mask.to(tensor)
+    return new_future_mask[: tensor.shape[0] * attn_heads, :maxpos, :maxpos]
+
+def _gen_alibi_mask(tensor, n_head, max_pos):
+    slopes = torch.Tensor(_get_interleave(n_head))
+    position_point = torch.arange(max_pos) - max_pos + 1
+    position_point = position_point.unsqueeze(0).unsqueeze(0).expand(n_head, -1, -1)
+    diag = torch.diag(position_point[0])
+    position_point = position_point - diag.unsqueeze(0).unsqueeze(0).transpose(-1, -2)
+    alibi = slopes.unsqueeze(1).unsqueeze(1) * position_point
+    alibi = alibi.view(n_head, 1, max_pos)
+    alibi_mask = torch.triu(_fill_with_neg_inf(torch.zeros([max_pos, max_pos])), 1)
+    alibi_mask = alibi_mask.unsqueeze(0) + alibi
+    return alibi_mask
+
+def get_alibi_mask(self, tensor, seq_length_with_past):
+    if self.training:
+        slopes = torch.Tensor(_get_interleave(self.n_head))
+        position_point = (
+                torch.arange(
+                    seq_length_with_past) - seq_length_with_past + 1
+        )
+        position_point = (
+            position_point.unsqueeze(0)
+            .unsqueeze(0)
+            .expand(self.n_head, seq_length_with_past, -1)
+        )
+        diag = torch.diag(position_point[0])
+        position_point = position_point - diag.unsqueeze(0).unsqueeze(
+            0).transpose(
+            -1, -2
+        )
+        alibi = slopes.unsqueeze(1).unsqueeze(1) * position_point
+        mask = _buffered_future_mask(
+            tensor, seq_length_with_past, alibi, self.n_head
+        )
+    else:
+        if self.first_run:
+            self.first_run = False
+            self.register_buffer(
+                "future_mask",
+                _gen_alibi_mask(tensor, self.n_head, self.max_cache_pos).to(
+                    tensor
+                ),
+                persistent=False,
+            )
+        if seq_length_with_past > self.max_cache_pos:
+            self.max_cache_pos = seq_length_with_past
+            self.register_buffer(
+                "future_mask",
+                _gen_alibi_mask(tensor, self.n_head, self.max_cache_pos).to(
+                    tensor
+                ),
+                persistent=False,
+            )
+        mask = self.future_mask[
+               : self.n_head, :seq_length_with_past, :seq_length_with_past
+               ]
+    return mask
 
 
 if __name__ == '__main__':

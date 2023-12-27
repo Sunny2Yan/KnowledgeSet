@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import re
 import toolz
 from collections import Counter
@@ -147,18 +148,7 @@ text = """
 Contrastive learning aims to learn good representations by comparing positive 
 and negative examples. CLIP [Radford et al., 2021] and SimCLR [Chen et al., 
 2020] are two popular contrastive learning methods that have achieved 
-state-of-the-art performance in the image domain. During contrastive 
-pre-training, negative examples are kept in the same batch to learn to 
-distinguish them from positive examples. Scaling the batch size in contrastive 
-learning has been demonstrated to enhance the quality of representations, 
-as shown in [Gao et al., 2021b]. It has been suggested [Gao et al., 2019] that 
-the embedding space in language modeling suffers from degeneracy, where 
-embeddings are tightly packed in a narrow cone, making it difficult to 
-distinguish between them. TRIME [Zhong et al., 2022] proposes a training 
-approach designed for training LMs with memory augmentation, which uses in-batch 
-negatives to improve the quality of representations. The main difference between 
-this and our approach is that we incorporate negatives into the memory attention 
-layer instead of interpolating in the output layer.
+state-of-the-art performance in the image domain. 
 """
 
 text = text.replace('\n', '').split(' ')
