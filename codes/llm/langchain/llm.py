@@ -52,18 +52,18 @@ if __name__ == '__main__':
     api_key = ""
     model_name = "gpt-3.5-turbo-1106"
     chat_chain = ChatChain(api_key, model_name)
-    # chat_chain.stream("Write me a song about sparkling water.")
+    chat_chain.stream("Write me a song about sparkling water.")
 
-    # 设置缓存，减少重复问题的花费
-    from langchain.globals import set_llm_cache
-    from langchain.cache import InMemoryCache
-    from langchain.cache import SQLiteCache
-
-    set_llm_cache(InMemoryCache())
-    # set_llm_cache(SQLiteCache(database_path=".langchain.db"))  # SQLite 缓存
-    time_1 = time.time()
-    chat_chain.chat("Write me a song about sparkling water.")
-    print(time.time() - time_1)  # 9.373593091964722
-    time_2 = time.time()
-    chat_chain.chat("Write me a song about sparkling water.")
-    print(time.time() - time_2)  # 0.013096332550048828
+    # # 设置缓存，减少重复问题的花费
+    # from langchain.globals import set_llm_cache
+    # from langchain.cache import InMemoryCache
+    # from langchain.cache import SQLiteCache
+    #
+    # set_llm_cache(InMemoryCache())
+    # # set_llm_cache(SQLiteCache(database_path=".langchain.db"))  # SQLite 缓存
+    # time_1 = time.time()
+    # chat_chain.chat("Write me a song about sparkling water.")
+    # print(time.time() - time_1)  # 9.373593091964722
+    # time_2 = time.time()
+    # chat_chain.chat("Write me a song about sparkling water.")
+    # print(time.time() - time_2)  # 0.013096332550048828

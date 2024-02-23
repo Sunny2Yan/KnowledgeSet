@@ -101,3 +101,68 @@ class Math(object):
         #     idx = (idx + m - 1) % i  # 本轮第m个位置
         #     num = nums.pop(idx)
         return num
+
+
+
+graph = [[0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+         [1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+         [1, 1, 0, 1, 1, 1, 1, 0, 0, 0],
+         [1, 1, 1, 0, 1, 1, 0, 1, 0, 0],
+         [1, 1, 1, 1, 0, 1, 0, 0, 1, 0],
+         [1, 1, 1, 1, 1, 0, 0, 0, 0, 1],
+         [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+         [1, 1, 0, 1, 0, 0, 1, 0, 1, 1],
+         [1, 1, 0, 0, 1, 0, 1, 1, 0, 1],
+         [1, 1, 0, 0, 0, 1, 1, 1, 1, 0]]
+
+import numpy as np
+
+graph = np.array(graph)
+graph_cube = graph @ graph @ graph
+print(graph_cube)
+res = graph_cube.trace() / 6 - 24  # 3 (三角形每个顶点都算一次) * 2 (方向)
+print(res)
+
+
+A = {"A": {"B", "C", "D", "E", "F", "G", "H", "I", "J"},
+     "B": {"A", "C", "D", "E", "F", "G", "H", "I", "J"},
+     "C": {"A", "B", "D", "E", "F", "G"},
+     "D": {"A", "B", "C", "E", "F", "H"},
+     "E": {"A", "B", "C", "D", "F", "I"},
+     "F": {"A", "B", "C", "D", "E", "J"},
+     "G": {"A", "B", "C", "H", "I", "J"},
+     "H": {"A", "B", "D", "G", "I", "J"},
+     "I": {"A", "B", "E", "G", "H", "J"},
+     "J": {"A", "B", "F", "G", "H", "I"}}
+B = [["A", "H", "D"], ["A", "I", "E"], ["A", "J", "F"], ["A", "G", "C"],
+     ["B", "H", "I", "J", "G"], ["B", "D", "E", "F", "C"]]
+
+res = 0
+for k, v in A.items():  # 第一个点
+    for i in v:  # 第二个点
+        # print(k, i)  # 第一条边
+        for j in A[i]:  # 第三个点
+            if k == j:  # 第一个点与第三个点重合
+                pass
+            else:
+                if k in A[j]:  # 第一个点是第三个点指向的点
+                    res += 1
+
+
+def factorial(n):
+    ans = 1
+    for i in range(1, n+1):
+        ans *= i
+    return ans
+
+
+def c_n_m(n, m):
+     return factorial(n) / (factorial(m) * factorial(n-m))
+
+
+res = res / 6
+for b in B:
+    res -= c_n_m(len(b), 3)
+
+print(res)
+

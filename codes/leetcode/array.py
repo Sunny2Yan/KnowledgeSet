@@ -6,7 +6,8 @@ class FindArray(object):
     def find_number(nums: list[int], target: int) -> int:
         """查找有序列表中目标数字重复次数
         （剑指offer 53）二分法，定义一个函数 $f$ 来找到第一个大于target的索引，然后根据
-        $f(target) - f(target - 1)$ 即可。时O(logn), 空O(1)
+        $f(target) - f(target - 1)$ 即可。
+        时O(logn), 空O(1)
         """
         def __find(tar):
             left, right = 0, len(nums)-1
@@ -23,7 +24,8 @@ class FindArray(object):
     @staticmethod
     def find_renumber(nums: list[int]) -> Optional[int]:
         """查找数组中重复的数字
-        （剑指offer 03）建立集合存储数字，遍历数组，集合中不存在就加入，否则输出。时O(n)，空O(1)
+        （剑指offer 03）建立集合存储数字，遍历数组，集合中不存在就加入，否则输出。
+        时O(n)，空O(1)
         """
         dict = set()
         for num in nums:
@@ -38,7 +40,8 @@ class FindArray(object):
     def find_loss_number(nums: list[int]) -> int:
         """查找 0~n-1 中缺失的数字
         （剑指offer 53）二分法，若中间数字的值等于索引，则右侧缺失，否则左侧缺失，由于每次先判断
-        left，最终只需返回left即可。也可以前n项和直接算。时O(logn), 空O(1)
+        left，最终只需返回left即可。也可以前n项和直接算。
+        时O(logn), 空O(1)
         """
         left, right = 0, len(nums) - 1
         while left <= right:
@@ -71,7 +74,8 @@ class TransposeArray(object):
     @staticmethod
     def transpose_matrix(matrix: list[list[int]]) -> list[list[int]]:
         """旋转矩阵（转置）
-        （leetcode 867）定义一个相同大小的矩阵，然后进行值替换。时O(nm), 空O(mn)
+        （leetcode 867）定义一个相同大小的矩阵，然后进行值替换。
+        时O(nm), 空O(mn)
         """
         # 1. list(zip(*matrix))
         # 2. np.array(matrix).T.tolist()
@@ -86,7 +90,8 @@ class TransposeArray(object):
     def print_matrix(matrix: list[list[int]]) -> list:
         """顺时针打印矩阵
         (剑指offer 29) 如果 $left <= right or up <= down$ 顺时针打印，先打印顶横和右竖，
-        再打印下横和左竖，但$left \neq right and up\neq down$。O(mn)；空O(mn)
+        再打印下横和左竖，但$left \neq right and up\neq down$。
+        O(n^2)；空O(n^2)
         """
         res = []
         if not matrix or not matrix[0]: return res
@@ -113,11 +118,11 @@ class ComputeArray(object):
         """矩阵乘法运算"""
         res = [[] for _ in range(len(matrix_1))]
         for i in range(len(matrix_1)):
-            for j in range(len(matrix_1)):
-                sum = 0
+            for j in range(len(matrix_2[0])):
+                _sum = 0
                 for k in range(len(matrix_1[0])):
-                    sum += matrix_1[i][k] * matrix_2[k][j]
-                res[i].append(sum)
+                    _sum += matrix_1[i][k] * matrix_2[k][j]
+                res[i].append(_sum)
 
         return res
 

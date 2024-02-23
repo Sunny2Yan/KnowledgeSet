@@ -1,9 +1,16 @@
 """图
-
+图存储：邻接矩阵(adjacency matrix)、邻接表(adjacency list)、邻接多重表(adjacency multilists)
 """
+import collections
 
 
 class GraphDFS(object):
+    """深度优先搜索(DFS，depth first search)是一个递归过程，有回退过程。步骤如下：
+    1. 构建dfs函数：dfs(si, sj, cnt )。(si, sj)表示目前所在位置，cnt表示产生的花费；
+    2. 确定终止条件：si=di，sj=dj，cnt=t。(di,dj)表示结束位置，t表示产生的花费；
+    3. 中间搜索按照上、右、下、左顺时针的顺序进行搜索；
+    4. 每次搜索后进行回溯，回复原图元素。
+    """
     def __init__(self):
         ...
 
@@ -102,6 +109,39 @@ class GraphDFS(object):
             for j in range(len(grid[0])):
                 if grid[i][j] == 1:
                     res = max(res, dfs(i, j))
+
+        return res
+
+
+class GraphBFS:
+    """广度优先搜索(BFS，Breadth First Search)是一个分层的搜索过程，没有回退过程，是非递归的。
+    1. 定义状态数组 visited=[(i, j)]，用来存储各顶点的访问状态，避免重复；
+    2. 从头取出队列中顶点，依次访问该顶点的邻接顶点，并入队列，直至队列为空；
+    3. 遍历图的每一个元素，对每一个元素进行广度优先搜索
+    """
+    def __init__(self):
+        ...
+
+    @staticmethod
+    def num_islands(grid: list[list[str]]) -> int:
+        if len(grid) == 0:
+            return 0
+
+        res = 0
+        for i in range(len(grid)):
+            for j in range(len(grid[0])):
+                if grid[i][j] == "1":
+                    res += 1
+                    grid[i][j] = "0"  # 访问过的
+                    visited = collections.deque([(i, j)])
+                    while visited:
+                        row, col = visited.popleft()
+                        for x, y in [(row - 1, col), (row + 1, col),
+                                     (row, col - 1), (row, col + 1)]:
+                            if (0 <= x < len(grid) and 0 <= y < len(grid[0])
+                                    and grid[x][y] == "1"):  # 且该点未被访问
+                                visited.append((x, y))
+                                grid[x][y] = "0"
 
         return res
 

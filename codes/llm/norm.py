@@ -22,19 +22,15 @@ class LayerNorm(nn.Module):
 # llama, baichuan
 class RMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
-        """LlamaRMSNorm is equivalent to T5LayerNorm"""
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
         self.epsilon = eps
 
-    def forward(self, hidden_states):
-        r"""$W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$
-        """
-        variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
-        hidden_states = hidden_states * torch.rsqrt(variance + self.epsilon)
+    def _norm(self, x):
+        r"""$W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$"""
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-        # convert into half-precision if necessary
-        if self.weight.dtype in [torch.float16, torch.bfloat16]:
-            hidden_states = hidden_states.to(self.weight.dtype)
+    def forward(self, hidden_states):
+        hidden_states = self._norm(hidden_states.float()).type_as(hidden_states)
 
         return self.weight * hidden_states
