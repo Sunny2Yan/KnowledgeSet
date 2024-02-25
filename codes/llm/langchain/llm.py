@@ -49,7 +49,7 @@ class ChatChain:
 
 
 if __name__ == '__main__':
-    api_key = ""
+    api_key = "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"
     model_name = "gpt-3.5-turbo-1106"
     chat_chain = ChatChain(api_key, model_name)
     chat_chain.stream("Write me a song about sparkling water.")
