@@ -1,3 +1,6 @@
+from typing import Optional, Literal
+
+
 class PPOConfig:
     # common parameters
     seed: int = 0
@@ -5,7 +8,6 @@ class PPOConfig:
     task_name: Optional[str] = None
     model_name: Optional[str] = "gpt2"
     query_dataset: Optional[str] = "imdb"
-    """Name of dataset to query - used only for tracking purposes"""
     reward_model: Optional[str] = "sentiment-analysis:lvwerra/distilbert-imdb"
     """The reward model to use - used only for tracking purposes"""
     remove_unused_columns: bool = True
