@@ -37,7 +37,7 @@ from .utils import (
 
 if is_peft_available():
     from peft import PeftConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
-
+    from peft import LoraConfig
 
 class SFTTrainer:
     def __init__(
@@ -74,62 +74,13 @@ class SFTTrainer:
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
             load_in_8bit=False,
-            device_map={"": Accelerator().local_process_index})
+            device_map='auto')
         model = prepare_model_for_kbit_training(model)
-        if peft:
+        if is_peft:
             lora_config = LoraConfig(
                 r=16, lora_alpha=32, lora_dropout=0.05,
                 bias="none", task_type="CAUSAL_LM", )
             model = get_peft_model(model, lora_config)
-
-        if packing and data_collator is not None and isinstance(data_collator, DataCollatorForCompletionOnlyLM):
-            raise ValueError(
-                "You passed a `DataCollatorForCompletionOnlyLM` to the SFTTrainer. This is not compatible with the `packing` argument."
-            )
-
-        if is_peft_available() and peft_config is not None:
-            if not isinstance(peft_config, PeftConfig):
-                raise ValueError(
-                    "If you want to use the PeftModel, you need to pass a PeftConfig object to the SFTTrainer."
-                    f" and you passed a {type(peft_config)}."
-                )
-
-            if not isinstance(model, PeftModel):
-                _support_gc_kwargs = hasattr(
-                    args, "gradient_checkpointing_kwargs"
-                ) and "gradient_checkpointing_kwargs" in list(
-                    inspect.signature(prepare_model_for_kbit_training).parameters
-                )
-                gradient_checkpointing_kwargs = getattr(args, "gradient_checkpointing_kwargs", None) or {}
-                if getattr(model, "is_loaded_in_8bit", False) or getattr(model, "is_loaded_in_4bit", False):
-                    prepare_model_kwargs = {
-                        "use_gradient_checkpointing": getattr(args, "gradient_checkpointing", False)
-                    }
-
-                    if _support_gc_kwargs:
-                        prepare_model_kwargs["gradient_checkpointing_kwargs"] = gradient_checkpointing_kwargs
-
-                    model = prepare_model_for_kbit_training(model, **prepare_model_kwargs)
-
-                    if args is not None:
-                        args = dataclasses.replace(args, gradient_checkpointing=False)
-                elif getattr(args, "gradient_checkpointing", False) and (
-                    "use_reentrant" not in gradient_checkpointing_kwargs
-                    or gradient_checkpointing_kwargs["use_reentrant"]
-                ):
-                    # For backward compatibility with older versions of transformers
-                    if hasattr(model, "enable_input_require_grads"):
-                        model.enable_input_require_grads()
-                    else:
-
-                        def make_inputs_require_grad(module, input, output):
-                            output.requires_grad_(True)
-
-                        model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
-
-                model = get_peft_model(model, peft_config)
-                if args is not None and args.bf16 and getattr(model, "is_loaded_in_4bit", False):
-                    peft_module_casting_to_bf16(model)
 
 
         self.dataset_num_proc = dataset_num_proc
@@ -149,7 +100,8 @@ class SFTTrainer:
         if formatting_func is None and dataset_text_field is None:
             # check if dataset has ChatML format or instruction format and is supported
             # if not stays #None
-            formatting_func = get_formatting_func_from_dataset(train_dataset, tokenizer)
+            formatting_func = get_formatting_func_from_dataset(train_dataset,
+                                                               tokenizer)
 
         if not packing:
             if dataset_text_field is None and formatting_func is None:
@@ -158,8 +110,8 @@ class SFTTrainer:
                 )
 
             if data_collator is None:
-                data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-
+                data_collator = DataCollatorForLanguageModeling(
+                    tokenizer=tokenizer, mlm=False)
         # Pre-process the datasets only once per node. The remaining processes will use the cache.
         with PartialState().local_main_process_first():
             if dataset_kwargs is None:
@@ -235,13 +187,11 @@ class SFTTrainer:
         append_concat_token=True,
         add_special_tokens=True,
     ):
-        if dataset is None:
-            raise ValueError("The dataset should not be None")
-
         # check if torch dataset / dataloader and do nothing
         if isinstance(dataset, (torch.utils.data.IterableDataset, torch.utils.data.Dataset, ConstantLengthDataset)):
             return dataset
-
+        from datasets import load_dataset
+        dataset = load_dataset("tatsu-lab/alpaca", split="train")
         if not packing:
             return self._prepare_non_packed_dataloader(
                 tokenizer,
@@ -301,16 +251,6 @@ class SFTTrainer:
 
             return {"input_ids": outputs["input_ids"], "attention_mask": outputs["attention_mask"]}
 
-        signature_columns = ["input_ids", "labels", "attention_mask"]
-
-        extra_columns = list(set(dataset.column_names) - set(signature_columns))
-
-        if not remove_unused_columns and len(extra_columns) > 0:
-            warnings.warn(
-                "You passed `remove_unused_columns=False` on a non-packed dataset. This might create some issues with the default collator and yield to errors. If you want to "
-                f"inspect dataset other columns (in this case {extra_columns}), you can subclass `DataCollatorForLanguageModeling` in case you used the default collator and create your own data collator in order to inspect the unused dataset columns."
-            )
-
         tokenized_dataset = dataset.map(
             tokenize,
             batched=True,
@@ -364,17 +304,14 @@ class SFTTrainer:
                     "Make sure that your dataset has enough samples to at least yield one packed sequence."
                 ) from exc
             return packed_dataset
-        else:
-            raise ValueError(
-                "You need to pass a `dataset_text_field` or `formatting_func` argument to the SFTTrainer if you want to use the `ConstantLengthDataset`."
-            )
 
     def _trl_activate_neftune(self, model):
-        r"""
-        Activates the neftune as presented in this code: https://github.com/neelsjain/NEFTune and paper: https://arxiv.org/abs/2310.05914
+        r"""NEFTune: (paper: https://arxiv.org/abs/2310.05914; code: https://github.com/neelsjain/NEFTune)
+        思路：在SFT的正向传播过程中，向训练数据的embedding中添加随机噪声。
+
         Since in transformers Trainer we do have an `_activate_neftune` method, we need to rename this method to avoid conflicts.
         """
-        unwrapped_model = unwrap_model(model)
+        unwrapped_model = unwrap_model(model)  # 获取原始模型
         if is_peft_available() and isinstance(unwrapped_model, PeftModel):
             embeddings = unwrapped_model.base_model.model.get_input_embeddings()
         else:
@@ -384,3 +321,45 @@ class SFTTrainer:
         hook_handle = embeddings.register_forward_hook(neftune_post_forward_hook)
         self.neftune_hook_handle = hook_handle
         return model
+
+    def load_dataset(self, train_path, valid_path):
+        train_dataset = TextDataset(
+            tokenizer=self.tokenizer,
+            file_path=train_path, block_size=128)
+        text_dataset = TextDataset(
+            tokenizer=self.tokenizer,
+            file_path=valid_path, block_size=128)
+        return
+
+    def formatting_func(self, examples):
+        """alpaca的数据格式"""
+        output_text = []
+        for i in range(len(examples["instruction"])):
+            instruction = examples["instruction"][i]
+            input_text = examples["input"][i]
+            response = examples["output"][i]
+
+            if input_text:
+                text = f'''Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+                ### Instruction:
+                {instruction}
+
+                ### Input:
+                {input_text}
+
+                ### Response:
+                {response}
+                '''
+            else:
+                text = f'''Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+                ### Instruction:
+                {instruction}
+
+                ### Response:
+                {response}
+                '''
+            output_text.append(text)
+
+        return output_text
