@@ -23,3 +23,4 @@ This is a place to record scraps of notes from study and work.
 2. [position](notes/llm/position.md) ([code](codes/llm/position.py))
 3. [activation](notes/llm/activation.md) ([code](codes/llm/activation.py))
 4. [peft](notes/llm/peft.md) ([code](codes/llm/peft))
+5. [rlhf](notes/llm/rlhf.md) ([code](codes/llm/rlhf))
