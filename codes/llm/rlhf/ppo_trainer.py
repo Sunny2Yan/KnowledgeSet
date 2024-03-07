@@ -62,8 +62,6 @@ class PPOConfig:
     """Number of optimisation epochs per batch of samples"""
     max_grad_norm: Optional[float] = None
     """Maximum gradient norm for gradient clipping"""
-    optimize_cuda_cache: Optional[bool] = None
-    """DEPRECATED: use `optimize_device_cache` instead, which does the same thing."""
     optimize_device_cache: Optional[bool] = False
     """Optimize device cache for slightly more memory-efficient training"""
     early_stopping: bool = False
@@ -95,13 +93,6 @@ class PPOConfig:
     global_batch_size: tyro.conf.Suppress[int] = None
     """TO BE FILLED In RUNTIME: the effective `batch_size` across all processes"""
 
-    if optimize_cuda_cache is not None:
-        warnings.warn(
-            "The `optimize_cuda_cache` argument will be deprecated soon, please use `optimize_device_cache` instead."
-        )
-        optimize_device_cache = optimize_cuda_cache
-    else:
-        optimize_device_cache = False
 
     def __post_init__(self):
         if self.forward_batch_size is not None:
@@ -118,14 +109,6 @@ class PPOConfig:
             "`mini_batch_size * gradient_accumulation_steps`",
             "`batch_size` must be a multiple of `mini_batch_size * gradient_accumulation_steps`",
         )
-
-        # check if wandb is installed
-        if self.log_with == "wandb":
-            # raise error if wandb is not installed
-            if not is_wandb_available():
-                raise ImportError(
-                    "Please install wandb to use wandb logging. You can do this by running `pip install wandb`."
-                )
 
         self.total_ppo_epochs = int(np.ceil(self.steps / self.batch_size))
         assert self.kl_penalty in ["kl", "abs", "mse", "full"]
@@ -273,12 +256,7 @@ class PPOTrainer:
         if not getattr(self.model, "is_sequential_parallel", False):
             self.current_device = self.accelerator.device
         else:
-            if is_xpu_available():
-                self.current_device = torch.device("xpu:0")
-            elif is_npu_available():
-                self.current_device = torch.device("npu:0")
-            else:
-                self.current_device = torch.device("cuda:0")
+            self.current_device = torch.device("cuda:0")
 
         PPODecorators.optimize_device_cache = self.config.optimize_device_cache
 
