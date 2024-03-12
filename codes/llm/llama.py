@@ -2,10 +2,25 @@ import math
 import torch
 import torch.nn as nn
 from typing import Tuple, Optional
+from dataclasses import dataclass
 
 
-class LlamaRotaryEmbedding(torch.nn.Module):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+@dataclass
+class LlamaConfig:
+    dim: int = 512
+    hidden_size = 4096
+    intermediate_size = 11008
+    num_attention_heads = 32
+    n_layers: int = 8
+    norm_eps: float = 1e-6
+
+    max_batch_size: int = 1
+    max_position_embeddings: int = 2048
+
+
+class RotaryEmbedding(torch.nn.Module):
+    def __init__(self, dim, max_position_embeddings=2048,
+                 base=10000, device=None):
         super().__init__()
         # 计算位置编码的频率并加入缓存 $1 / 10000^(2k / d)$
         inv_freq = 1.0 / (base ** (torch.arange(
@@ -36,8 +51,9 @@ class LlamaRotaryEmbedding(torch.nn.Module):
         )
 
 
-class LlamaAttention(nn.Module):
-    def __init__(self, hidden_size, num_attention_heads, max_position_embeddings):
+class Attention(nn.Module):
+    def __init__(self, hidden_size, num_attention_heads,
+                 max_position_embeddings):
         super().__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_attention_heads
@@ -54,7 +70,7 @@ class LlamaAttention(nn.Module):
                                 self.num_heads * self.head_dim, bias=False)
         self.o_proj = nn.Linear(self.num_heads * self.head_dim,
                                 self.hidden_size, bias=False)
-        self.rotary_emb = LlamaRotaryEmbedding(
+        self.rotary_emb = RotaryEmbedding(
             self.head_dim, max_position_embeddings=self.max_position_embeddings)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
@@ -90,7 +106,8 @@ class LlamaAttention(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor],
+               Optional[Tuple[torch.Tensor]]]:
         bsz, q_len, _ = hidden_states.size()
 
         query_states = self.q_proj(hidden_states).view(
@@ -182,17 +199,18 @@ class RMSNorm(nn.Module):
 
 
 class LlamaDecoderLayer(nn.Module):
-    def __init__(self, config: LlamaConfig):
+    def __init__(self):
         super().__init__()
-        self.hidden_size = config.hidden_size
-        self.self_attn = LlamaAttention(config=config)
-        self.mlp = MLP(
-            hidden_size=self.hidden_size,
-            intermediate_size=config.intermediate_size,
-            hidden_act=config.hidden_act,
-        )
-        self.input_layernorm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.hidden_size = 4096
+        self.intermediate_size = 11008
+        self.num_attention_heads = 32
+        self.self_attn = Attention(self.hidden_size,
+                                   self.num_attention_heads,
+                                   max_position_embeddings=2048)
+        self.mlp = MLP(hidden_size=self.hidden_size,
+                       intermediate_size=self.intermediate_size, )
+        self.input_layernorm = RMSNorm(self.hidden_size, eps=1e-6)
+        self.post_attention_layernorm = RMSNorm(self.hidden_size, eps=1e-6)
 
     def forward(
         self,
@@ -205,16 +223,12 @@ class LlamaDecoderLayer(nn.Module):
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
-                `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
-            output_attentions (`bool`, *optional*):
-                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
-                returned tensors for more detail.
-            use_cache (`bool`, *optional*):
-                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
-                (see `past_key_values`).
-            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
+            hidden_states: (batch, seq_len, embed_dim)
+            attention_mask: (batch, 1, tgt_len, src_len)
+            output_attentions (`bool`, *optional*): 是否返回所有attention层的参数
+            use_cache (`bool`, *optional*): 是否使用past_key_values缓存键值对
+            past_key_value (`Tuple(torch.FloatTensor)`, *optional*):
+            缓存过去的键和值投影状态。
         """
 
         residual = hidden_states
@@ -238,12 +252,144 @@ class LlamaDecoderLayer(nn.Module):
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = (hidden_states,)
+        outputs = (hidden_states, )
 
         if output_attentions:
-            outputs += (self_attn_weights,)
+            outputs += (self_attn_weights, )
 
         if use_cache:
-            outputs += (present_key_value,)
+            outputs += (present_key_value, )
 
         return outputs
+
+
+class LlamaModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.vocab_size = 32000
+        self.hidden_size = 4096
+        self.num_hidden_layers = 32
+        self.padding_idx = 0
+
+        self.embed_tokens = nn.Embedding(self.vocab_size,
+                                         self.hidden_size,
+                                         self.padding_idx)
+        self.layers = nn.ModuleList([LlamaDecoderLayer()
+                                     for _ in range(self.num_hidden_layers)])
+        self.norm = RMSNorm(self.hidden_size, eps=1e-6)
+        self.out_head = nn.Linear(self.hidden_size, self.vocab_size,
+                                 bias=False)
+
+        # Initialize weights
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        std = self.config.initializer_range
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=std)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=std)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
+
+    def _prepare_decoder_attention_mask(self, attention_mask, input_shape,
+                                        inputs_embeds, past_key_values_length):
+        # create causal mask
+        # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+        combined_attention_mask = None
+        if input_shape[-1] > 1:
+            combined_attention_mask = self._make_causal_mask(
+                input_shape,
+                inputs_embeds.dtype,
+                device=inputs_embeds.device,
+                past_key_values_length=past_key_values_length,
+            )
+
+    def _make_causal_mask(self,
+            input_ids_shape: torch.Size, dtype: torch.dtype,
+            device: torch.device, past_key_values_length: int = 0
+    ):
+        """
+        Make causal mask used for bi-directional self-attention.
+        """
+        bsz, tgt_len = input_ids_shape
+        mask = torch.full((tgt_len, tgt_len),
+                          torch.tensor(torch.finfo(dtype).min, device=device),
+                          device=device)
+        mask_cond = torch.arange(mask.size(-1), device=device)
+        mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+        mask = mask.to(dtype)
+
+        if past_key_values_length > 0:
+            mask = torch.cat([torch.zeros(tgt_len, past_key_values_length,
+                                          dtype=dtype, device=device), mask],
+                             dim=-1)
+        return mask[None, None, :, :].expand(bsz, 1, tgt_len,
+                                             tgt_len + past_key_values_length)
+
+    def forward(
+        self,
+        input_ids: torch.LongTensor = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        use_cache: bool = False,
+    ):
+        batch_size, seq_length = input_ids.shape
+        seq_length_with_past = seq_length
+        past_key_values_length = 0
+
+        if past_key_values is not None:
+            past_key_values_length = past_key_values[0][0].shape[2]
+            seq_length_with_past = seq_length_with_past + past_key_values_length
+
+        device = input_ids.device
+        position_ids = torch.arange(
+            past_key_values_length, seq_length + past_key_values_length,
+            dtype=torch.long, device=device)
+        position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
+        inputs_embeds = self.embed_tokens(input_ids)
+
+        attention_mask = torch.ones(
+            (batch_size, seq_length_with_past),
+            dtype=torch.bool, device=device)
+        attention_mask = self._prepare_decoder_attention_mask(
+            attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
+        )
+
+        hidden_states = inputs_embeds
+
+        # decoder layers
+        for idx, decoder_layer in enumerate(self.layers):
+            past_key_value = past_key_values[idx] \
+                if past_key_values is not None else None
+            layer_outputs = decoder_layer(
+                hidden_states,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_value=past_key_value,
+                use_cache=use_cache, )
+
+            hidden_states = layer_outputs[0]
+
+        hidden_states = self.norm(hidden_states)
+        logits = self.out_head(hidden_states)
+
+        return logits
+
+    def model_train(
+            self,
+            labels: Optional[torch.LongTensor] = None,):
+        logits = self.forward()
+        loss = None
+        if labels is not None:
+            # Shift so that tokens < n predict n
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss()
+            shift_logits = shift_logits.view(-1, self.config.vocab_size)
+            shift_labels = shift_labels.view(-1)
+            # Enable model parallelism
+            shift_labels = shift_labels.to(shift_logits.device)
+            loss = loss_fct(shift_logits, shift_labels)
