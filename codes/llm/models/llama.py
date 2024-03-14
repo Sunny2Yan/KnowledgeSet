@@ -1,24 +1,48 @@
 import math
 import torch
 import torch.nn as nn
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from dataclasses import dataclass
+
+""""Notes:
+1. llama mlp: $l_2[act(l_1(x)) * l_1(x)]$, 其中,l_1(4096-11008); l_2(11008-4096)
+2. RSMNorm: $1 / (sqrt(1/n sum(x_i^2)) + eps)$
+3. RoPE: freq = 1 / (10000^(2k / d)) -> sin(m * theta); cos(m * theta)
+4. model: 
+                                  |--------> position_ids
+input_ids[batch_size, seq_length] -(embed)-> hidden_states -[decoder * 32]-> hidden_states -[norm][linear]-> logits(hidden_states, vacab_size)
+                                  |--------> mask_att
+5. decoder:
+              |---[residual]---|                |-[residual]-|
+hidden_states -[norm][self_att]-> hidden_states -[norm][mlp]-> hidden_states
+6. attention
+mask_att --------------------------------------------------|
+             |-[linear]-> v -------------------------------|
+hidden_states -[linear]-> q -|               |-> q_states -> [stt_score] -[linear]-> att_output
+             |-[linear]-> k -[rotary_pos_emb]--> k_states -|
+position_ids ----------------|             
+"""
 
 
 @dataclass
 class LlamaConfig:
     dim: int = 512
-    hidden_size = 4096
-    intermediate_size = 11008
-    num_attention_heads = 32
-    n_layers: int = 8
+    vocab_size: int = 32000
+    hidden_size: int = 4096
+    intermediate_size: int = 11008  # MLP隐藏层size
+    num_attention_heads: int = 32
+    num_hidden_layers: int = 32
     norm_eps: float = 1e-6
 
-    max_batch_size: int = 1
+    initializer_range: float = 0.02
     max_position_embeddings: int = 2048
 
+    bos_token_id: int = 1
+    eos_token_id: int = 2
+    pad_token_id: int = 0
 
-class RotaryEmbedding(torch.nn.Module):
+
+class RotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=2048,
                  base=10000, device=None):
         super().__init__()
@@ -52,13 +76,12 @@ class RotaryEmbedding(torch.nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, hidden_size, num_attention_heads,
-                 max_position_embeddings):
+    def __init__(self, cfg: LlamaConfig):
         super().__init__()
-        self.hidden_size = hidden_size
-        self.num_heads = num_attention_heads
+        self.hidden_size = cfg.hidden_size
+        self.num_heads = cfg.num_attention_heads
         self.head_dim = self.hidden_size // self.num_heads
-        self.max_position_embeddings = max_position_embeddings
+        self.max_position_embeddings = cfg.max_position_embeddings
 
         assert self.head_dim * self.num_heads == self.hidden_size
 
@@ -176,7 +199,7 @@ class MLP(nn.Module):
         self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
         self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)
         self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
-        self.act_fn = nn.SiLU()
+        self.act_fn = nn.SiLU()  # x * sigmoid(x)
 
     def forward(self, x):
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
@@ -190,7 +213,7 @@ class RMSNorm(nn.Module):
 
     def _norm(self, x):
         r"""$W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$"""
-        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.epsilon)
 
     def forward(self, hidden_states):
         hidden_states = self._norm(hidden_states.float()).type_as(hidden_states)
@@ -199,18 +222,17 @@ class RMSNorm(nn.Module):
 
 
 class LlamaDecoderLayer(nn.Module):
-    def __init__(self):
+    def __init__(self, cfg: LlamaConfig):
         super().__init__()
-        self.hidden_size = 4096
-        self.intermediate_size = 11008
-        self.num_attention_heads = 32
-        self.self_attn = Attention(self.hidden_size,
-                                   self.num_attention_heads,
-                                   max_position_embeddings=2048)
+        self.hidden_size = cfg.hidden_size
+        self.intermediate_size = cfg.intermediate_size
+        self.num_attention_heads = cfg.num_attention_heads
+        self.self_attn = Attention(cfg)
         self.mlp = MLP(hidden_size=self.hidden_size,
                        intermediate_size=self.intermediate_size, )
-        self.input_layernorm = RMSNorm(self.hidden_size, eps=1e-6)
-        self.post_attention_layernorm = RMSNorm(self.hidden_size, eps=1e-6)
+        self.input_layernorm = RMSNorm(self.hidden_size, eps=cfg.norm_eps)
+        self.post_attention_layernorm = RMSNorm(self.hidden_size,
+                                                eps=cfg.norm_eps)
 
     def forward(
         self,
@@ -264,27 +286,27 @@ class LlamaDecoderLayer(nn.Module):
 
 
 class LlamaModel(nn.Module):
-    def __init__(self):
+    def __init__(self, cfg: LlamaConfig):
         super().__init__()
-        self.vocab_size = 32000
-        self.hidden_size = 4096
-        self.num_hidden_layers = 32
+        self.vocab_size = cfg.vocab_size
+        self.hidden_size = cfg.hidden_size
+        self.num_hidden_layers = cfg.num_hidden_layers
         self.padding_idx = 0
+        self.initializer_range = cfg.initializer_range
 
         self.embed_tokens = nn.Embedding(self.vocab_size,
                                          self.hidden_size,
                                          self.padding_idx)
-        self.layers = nn.ModuleList([LlamaDecoderLayer()
+        self.layers = nn.ModuleList([LlamaDecoderLayer(cfg)
                                      for _ in range(self.num_hidden_layers)])
-        self.norm = RMSNorm(self.hidden_size, eps=1e-6)
-        self.out_head = nn.Linear(self.hidden_size, self.vocab_size,
-                                 bias=False)
+        self.norm = RMSNorm(self.hidden_size, eps=cfg.norm_eps)
+        self.out_head = nn.Linear(self.hidden_size, self.vocab_size, bias=False)
 
         # Initialize weights
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
-        std = self.config.initializer_range
+        std = self.initializer_range
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
@@ -294,40 +316,28 @@ class LlamaModel(nn.Module):
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
 
-    def _prepare_decoder_attention_mask(self, attention_mask, input_shape,
-                                        inputs_embeds, past_key_values_length):
+    @staticmethod
+    def prepare_attention_mask(input_shape, inputs_embeds,
+                               past_key_values_length):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-        combined_attention_mask = None
         if input_shape[-1] > 1:
-            combined_attention_mask = self._make_causal_mask(
-                input_shape,
-                inputs_embeds.dtype,
-                device=inputs_embeds.device,
-                past_key_values_length=past_key_values_length,
-            )
+            bsz, seq_len = input_shape
+            dtype, device = inputs_embeds.dtype, inputs_embeds.device
+            mask = torch.full((seq_len, seq_len), torch.finfo(dtype).min,
+                              device=device)
+            mask_cond = torch.arange(mask.size(-1), device=device)
+            mask.masked_fill_(
+                mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+            mask = mask.to(dtype)
 
-    def _make_causal_mask(self,
-            input_ids_shape: torch.Size, dtype: torch.dtype,
-            device: torch.device, past_key_values_length: int = 0
-    ):
-        """
-        Make causal mask used for bi-directional self-attention.
-        """
-        bsz, tgt_len = input_ids_shape
-        mask = torch.full((tgt_len, tgt_len),
-                          torch.tensor(torch.finfo(dtype).min, device=device),
-                          device=device)
-        mask_cond = torch.arange(mask.size(-1), device=device)
-        mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
-        mask = mask.to(dtype)
+            if past_key_values_length > 0:
+                mask = torch.cat([torch.zeros(
+                    seq_len, past_key_values_length,
+                    dtype=dtype, device=device), mask], dim=-1)
 
-        if past_key_values_length > 0:
-            mask = torch.cat([torch.zeros(tgt_len, past_key_values_length,
-                                          dtype=dtype, device=device), mask],
-                             dim=-1)
-        return mask[None, None, :, :].expand(bsz, 1, tgt_len,
-                                             tgt_len + past_key_values_length)
+            return mask[None, None, :, :].expand(
+                bsz, 1, seq_len, seq_len + past_key_values_length)
 
     def forward(
         self,
@@ -341,21 +351,17 @@ class LlamaModel(nn.Module):
 
         if past_key_values is not None:
             past_key_values_length = past_key_values[0][0].shape[2]
-            seq_length_with_past = seq_length_with_past + past_key_values_length
 
         device = input_ids.device
         position_ids = torch.arange(
             past_key_values_length, seq_length + past_key_values_length,
             dtype=torch.long, device=device)
         position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
+        # input_embed: (batch_size, input_ids_len, hidden_size)
         inputs_embeds = self.embed_tokens(input_ids)
 
-        attention_mask = torch.ones(
-            (batch_size, seq_length_with_past),
-            dtype=torch.bool, device=device)
-        attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
-        )
+        attention_mask = self.prepare_attention_mask(
+            (batch_size, seq_length), inputs_embeds, past_key_values_length)
 
         hidden_states = inputs_embeds
 
@@ -387,9 +393,19 @@ class LlamaModel(nn.Module):
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             loss = loss_fct(shift_logits, shift_labels)
+
+        return loss
+
+
+if __name__ == '__main__':
+    x = torch.randint(1, 500, (2, 50), dtype=torch.long)
+    config = LlamaConfig()
+    model = LlamaModel(config)
+    y = model.forward(x).shape
+    print(y)

@@ -16,6 +16,10 @@ ReLU（Rectified Linear Unit）非线性整流单元
 
 $$ReLU(x) = max(0, x)$$
 
+## 3. SiLU (llama)
+
+$$SiLU(x) = x * sigmoid(x)$$
+
 ## 3. GeLU (Bert, GPT2)
 
 GeLU（Gaussian Error Linear Unit）高斯误差线性单元

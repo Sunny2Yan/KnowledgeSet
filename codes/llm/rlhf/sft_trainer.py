@@ -306,10 +306,10 @@ class SFTTrainer:
             return packed_dataset
 
     def _trl_activate_neftune(self, model):
-        r"""NEFTune: (paper: https://arxiv.org/abs/2310.05914; code: https://github.com/neelsjain/NEFTune)
+        r"""NEFTune:
+        (paper: https://arxiv.org/abs/2310.05914;
+        code: https://github.com/neelsjain/NEFTune)
         思路：在SFT的正向传播过程中，向训练数据的embedding中添加随机噪声。
-
-        Since in transformers Trainer we do have an `_activate_neftune` method, we need to rename this method to avoid conflicts.
         """
         unwrapped_model = unwrap_model(model)  # 获取原始模型
         if is_peft_available() and isinstance(unwrapped_model, PeftModel):
