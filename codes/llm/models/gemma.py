@@ -4,45 +4,31 @@ import torch.nn as nn
 from typing import Tuple, Optional, List
 from dataclasses import dataclass
 
-""""Notes:
-1. llama mlp: $l_2[act(l_1(x)) * l_1(x)]$, 其中,l_1(4096-11008); l_2(11008-4096)
-2. RSMNorm: $1 / (sqrt(1/n sum(x_i^2)) + eps)$
-3. RoPE: freq = 1 / (10000^(2k / d)) -> sin(m * theta); cos(m * theta)
-4. model: 
-                                  |--------> position_ids
-input_ids[batch_size, seq_length] -(embed)-> hidden_states -[decoder * 32]-> hidden_states -[norm][linear]-> logits(hidden_states, vacab_size)
-5. decoder:
-              |---[residual]---|                |-[residual]-|
-hidden_states -[norm][self_att]-> hidden_states -[norm][mlp]-> hidden_states
-6. attention
-             |-[linear]-> v -------------------------------|
-hidden_states -[linear]-> q -|               |-> q_states -> [stt_score] -[linear]-> att_output
-             |-[linear]-> k -[rotary_pos_emb]--> k_states -|
-position_ids ----------------|             
-"""
-
 
 @dataclass
-class LlamaConfig:
-    dim: int = 512
-    vocab_size: int = 32000
-    hidden_size: int = 4096
-    intermediate_size: int = 11008  # MLP隐藏层size
-    num_attention_heads: int = 32
-    num_hidden_layers: int = 32
-    norm_eps: float = 1e-6
+class GemmaConfig:
+    head_dim = 256
+    vocab_size = 256000
+    hidden_size = 3072
+    intermediate_size = 24576
+    num_attention_heads = 16
+    num_key_value_heads = 16
+    num_hidden_layers = 28
+    rms_norm_eps = 1e-6
 
-    initializer_range: float = 0.02
-    max_position_embeddings: int = 2048
+    initializer_range = 0.02
+    max_position_embeddings = 8192
 
-    bos_token_id: int = 1
-    eos_token_id: int = 2
-    pad_token_id: int = 0
+    pad_token_id = 0  # Padding token id.
+    eos_token_id = 1  # End of stream token id.
+    bos_token_id = 2  # Beginning of stream token id
+
+    hidden_act = "gelu"
 
 
 class RotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=2048,
-                 base=10000, device=None, scaling_factor=1.0):
+                 base=10000, device=None):
         super().__init__()
         # 计算位置编码的频率并加入缓存 $1 / 10000^(2k / d)$
         inv_freq = 1.0 / (base ** (torch.arange(
@@ -55,7 +41,6 @@ class RotaryEmbedding(nn.Module):
         t = torch.arange(self.max_seq_len_cached,
                          device=self.inv_freq.device,
                          dtype=self.inv_freq.dtype)
-        t = t / self.scaling_factor  # 内插法扩展窗口
         freqs = torch.outer(t, self.inv_freq)  # 向量外积
         emb = torch.cat((freqs, freqs), dim=-1)  # 矩阵横向拼接
 
@@ -75,31 +60,37 @@ class RotaryEmbedding(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, cfg: LlamaConfig):
+    def __init__(self, cfg: GemmaConfig):
         super().__init__()
         self.hidden_size = cfg.hidden_size
         self.num_heads = cfg.num_attention_heads
-        self.head_dim = self.hidden_size // self.num_heads
+        self.head_dim = cfg.head_dim
+        self.num_key_value_heads = cfg.num_key_value_heads
+            # self.hidden_size // self.num_heads
         self.max_position_embeddings = cfg.max_position_embeddings
 
-        assert self.head_dim * self.num_heads == self.hidden_size
+        assert self.hidden_size % self.num_heads == 0
 
         self.q_proj = nn.Linear(self.hidden_size,
-                                self.num_heads * self.head_dim, bias=False)
+                                self.num_heads * self.head_dim,
+                                bias=False)
         self.k_proj = nn.Linear(self.hidden_size,
-                                self.num_heads * self.head_dim, bias=False)
+                                self.num_key_value_heads * self.head_dim,
+                                bias=False)
         self.v_proj = nn.Linear(self.hidden_size,
-                                self.num_heads * self.head_dim, bias=False)
+                                self.num_key_value_heads * self.head_dim,
+                                bias=False)
         self.o_proj = nn.Linear(self.num_heads * self.head_dim,
-                                self.hidden_size, bias=False)
+                                self.hidden_size,
+                                bias=False)
         self.rotary_emb = RotaryEmbedding(
             self.head_dim, max_position_embeddings=self.max_position_embeddings)
 
-    def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
-        """将张量重塑为 [batch_size, num_attention_heads, seq_len, head_dim]。
-        """
-        return tensor.view(bsz, seq_len, self.num_heads,
-                           self.head_dim).transpose(1, 2).contiguous()
+    # def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
+    #     """将张量重塑为 [batch_size, num_attention_heads, seq_len, head_dim]。
+    #     """
+    #     return tensor.view(bsz, seq_len, self.num_heads,
+    #                        self.head_dim).transpose(1, 2).contiguous()
 
     @staticmethod
     def rotate_half(x):
@@ -135,9 +126,9 @@ class Attention(nn.Module):
         query_states = self.q_proj(hidden_states).view(
             bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = self.k_proj(hidden_states).view(
-            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+            bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = self.v_proj(hidden_states).view(
-            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+            bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
@@ -177,7 +168,7 @@ class Attention(nn.Module):
         assert attn_output.size() == (bsz, self.num_heads, q_len, self.head_dim)
 
         attn_output = attn_output.transpose(1, 2)
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+        attn_output = attn_output.reshape(bsz, q_len, -1)
 
         attn_output = self.o_proj(attn_output)
 
@@ -205,7 +196,7 @@ class MLP(nn.Module):
 
 
 class RMSNorm(nn.Module):
-    r"""$W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$
+    r"""$(1 + W) * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$
     """
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
@@ -218,11 +209,11 @@ class RMSNorm(nn.Module):
     def forward(self, hidden_states):
         hidden_states = self._norm(hidden_states.float()).type_as(hidden_states)
 
-        return self.weight * hidden_states
+        return hidden_states * (1 + self.weight)
 
 
 class LlamaDecoderLayer(nn.Module):
-    def __init__(self, cfg: LlamaConfig):
+    def __init__(self, cfg: GemmaConfig):
         super().__init__()
         self.hidden_size = cfg.hidden_size
         self.intermediate_size = cfg.intermediate_size
@@ -230,9 +221,9 @@ class LlamaDecoderLayer(nn.Module):
         self.self_attn = Attention(cfg)
         self.mlp = MLP(hidden_size=self.hidden_size,
                        intermediate_size=self.intermediate_size, )
-        self.input_layernorm = RMSNorm(self.hidden_size, eps=cfg.norm_eps)
+        self.input_layernorm = RMSNorm(self.hidden_size, eps=cfg.rms_norm_eps)
         self.post_attention_layernorm = RMSNorm(self.hidden_size,
-                                                eps=cfg.norm_eps)
+                                                eps=cfg.rms_norm_eps)
 
     def forward(
         self,
@@ -285,8 +276,8 @@ class LlamaDecoderLayer(nn.Module):
         return outputs
 
 
-class LlamaModel(nn.Module):
-    def __init__(self, cfg: LlamaConfig):
+class GemmaModel(nn.Module):
+    def __init__(self, cfg: GemmaConfig):
         super().__init__()
         self.vocab_size = cfg.vocab_size
         self.hidden_size = cfg.hidden_size
@@ -299,8 +290,7 @@ class LlamaModel(nn.Module):
                                          self.padding_idx)
         self.layers = nn.ModuleList([LlamaDecoderLayer(cfg)
                                      for _ in range(self.num_hidden_layers)])
-        self.norm = RMSNorm(self.hidden_size, eps=cfg.norm_eps)
-        self.out_head = nn.Linear(self.hidden_size, self.vocab_size, bias=False)
+        self.norm = RMSNorm(self.hidden_size, eps=cfg.rms_norm_eps)
 
         # Initialize weights
         self.apply(self._init_weights)
@@ -365,6 +355,9 @@ class LlamaModel(nn.Module):
 
         hidden_states = inputs_embeds
 
+        # normalized
+        hidden_states = hidden_states * (self.hidden_size ** 0.5)
+
         # decoder layers
         for idx, decoder_layer in enumerate(self.layers):
             past_key_value = past_key_values[idx] \
@@ -379,9 +372,8 @@ class LlamaModel(nn.Module):
             hidden_states = layer_outputs[0]
 
         hidden_states = self.norm(hidden_states)
-        logits = self.out_head(hidden_states)
 
-        return logits
+        return hidden_states
 
     def model_train(
             self,
@@ -405,7 +397,7 @@ class LlamaModel(nn.Module):
 
 if __name__ == '__main__':
     x = torch.randint(1, 500, (2, 50), dtype=torch.long)
-    config = LlamaConfig()
-    model = LlamaModel(config)
+    config = GemmaConfig()
+    model = GemmaModel(config)
     y = model.forward(x).shape
     print(y)
