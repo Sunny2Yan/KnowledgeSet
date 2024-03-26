@@ -144,36 +144,36 @@ class ComputeArray(object):
         return res
 
     @staticmethod
-    def spiral_order(matrix: list[list[int]]) -> list[int]:
-        """螺旋矩阵
-        (leetcode 54) 顺时针螺旋顺序 ，返回矩阵中的所有元素。时O(mn); 空O(mn)
+    def spiral_order(nums: list[int]) -> list[list[int]]:
+        """三数之和
+        (leetcode 15) 给定数组nums，返回数组中三个不同的元素使其和为0。
+        思路：先排序为应用双指针做准备，再遍历确定一个元素，剩余元素应用双指针确定。
+        时O(n^2); 空O(1)
         """
-        if not matrix or not matrix[0]:
-            return []
-        row, column = len(matrix), len(matrix[0])
-        left, right, top, bottom = 0, column - 1, 0, row - 1
-        res = list()
+        nums.sort()
+        res = []
 
-        while left <= right and top <= bottom:
-            for i in range(left, right + 1):
-                res.append(matrix[top][i])
-            top += 1
-            if top > bottom: break
+        for i in range(len(nums)-2):
+            if i > 0 and nums[i] == nums[i-1]:  # 过滤相同的数
+                continue
 
-            for j in range(top, bottom + 1):
-                res.append(matrix[j][right])
-            right -= 1
-            if left > right: break
+            left, right = i+1, len(nums)-1
+            while left < right:
+                s = nums[i] + nums[left] + nums[right]
+                if s == 0:
+                    res.append([nums[i], nums[left], nums[right]])
+                    while left+1 < right and nums[left+1] == nums[left]:
+                        left += 1
+                    while left < right-1 and nums[right-1] == nums[right]:
+                        right -= 1
+                    left += 1
+                    right -= 1
 
-            for m in range(right, left - 1, -1):
-                res.append(matrix[bottom][m])
-            bottom -= 1
-            if top > bottom: break
+                elif s < 0:
+                    left += 1
+                else:
+                    right -= 1
 
-            for n in range(bottom, top - 1, -1):
-                res.append(matrix[n][left])
-            left += 1
-            if left > right: break
         return res
 
     @staticmethod
