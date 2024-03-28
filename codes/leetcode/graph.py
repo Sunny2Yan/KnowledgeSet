@@ -99,6 +99,8 @@ class GraphDFS(object):
         def dfs(x: int, y: int) -> int:
             if x < 0 or y < 0 or x >= len(grid) or y >= len(grid[0]):
                 return 0
+            if grid[x][y] != 1:
+                return 0
             grid[x][y] = 0  # 访问过的记为0
             area = 1
             area += dfs(x - 1, y) + dfs(x + 1, y) + dfs(x, y - 1) + dfs(x, y + 1)
