@@ -59,6 +59,13 @@ $$
 
 ...
 
+### 1.4 SentencePiece (T5, llama)
+https://blog.51cto.com/u_16099302/8891834
+上述三种方法都有一个前提：输入以空格来区分，但很多语言的词语无法使用空格进行区分（eg:中文），
+把一个句子看作一个整体，再拆成片段（空格space也当作一种特殊字符来处理），再用BPE或者Unigram算法来构造词汇表。
+
+eg: "I have a new GPU!" ==> ['_I', '_have', '_a', '_new', '_G', 'PU', '!'] 
+
 ## 2. comparison
 
 ### 2.1 BPE(Byte-Pair Encoding)与WordPiece
