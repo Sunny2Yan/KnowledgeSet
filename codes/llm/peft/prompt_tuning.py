@@ -49,9 +49,12 @@ class PromptEmbedding(torch.nn.Module):
     def __init__(self, config, word_embeddings):
         super().__init__()
 
+        # 创建embedding层
         total_virtual_tokens = config.num_virtual_tokens * config.num_transformer_submodules
         self.embedding = torch.nn.Embedding(total_virtual_tokens, config.token_dim)
+
         if config.prompt_tuning_init == PromptTuningInit.TEXT:
+            # 获取指定tokenizer
             from transformers import AutoTokenizer
 
             tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_name_or_path)
@@ -59,6 +62,8 @@ class PromptEmbedding(torch.nn.Module):
             init_token_ids = tokenizer(init_text)["input_ids"]
             # Trim or iterate until num_text_tokens matches total_virtual_tokens
             num_text_tokens = len(init_token_ids)
+
+            # 调整或重复文本，以匹配总的虚拟标记数量
             if num_text_tokens > total_virtual_tokens:
                 init_token_ids = init_token_ids[:total_virtual_tokens]
             elif num_text_tokens < total_virtual_tokens:
@@ -66,12 +71,26 @@ class PromptEmbedding(torch.nn.Module):
                 init_token_ids = init_token_ids * num_reps
             init_token_ids = init_token_ids[:total_virtual_tokens]
 
+            # 使用初始化文本的嵌入权重初始化嵌入层
             word_embedding_weights = word_embeddings(torch.LongTensor(init_token_ids)).detach().clone()
             word_embedding_weights = word_embedding_weights.to(torch.float32)
             self.embedding.weight = torch.nn.Parameter(word_embedding_weights)
 
     def forward(self, indices):
-        # Just get embeddings
+        # 只fine-tuning embedding层
         prompt_embeddings = self.embedding(indices)
         return prompt_embeddings
 
+
+if __name__ == '__main__':
+    from peft import PromptTuningConfig, TaskType, get_peft_model
+
+    tokenizer, model = None, None
+    config = PromptTuningConfig(task_type=TaskType.CAUSAL_LM,
+                                prompt_tuning_init=PromptTuningInit.TEXT,
+                                prompt_tuning_init_text="下面是一段人与机器人的对话。",
+                                num_virtual_tokens=len(
+                                    tokenizer("下面是一段人与机器人的对话。")["input_ids"]),
+                                tokenizer_name_or_path="Langboat/bloom-1b4-zh")
+
+    model = get_peft_model(model, config)

@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 from prenlp.tokenizer import SentencePiece
 from torch.nn.parallel import DistributedDataParallel
-from radam import RAdam
 from pathlib import Path
+
 
 class ScaledDotProductAttention(nn.Module):
     def __init__(self, d_k, attn_pdrop):
@@ -343,7 +343,7 @@ class Trainer:
                                                  device_ids=[args.local_rank],
                                                  output_device=args.local_rank)
 
-        self.optimizer = RAdam(self.model.parameters(), args.lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), args.lr)
         self.criterion = nn.CrossEntropyLoss(ignore_index=self.pad_id).to(
             self.device)
         self.cls_criterion = nn.CrossEntropyLoss().to(self.device)

@@ -5,8 +5,10 @@ import math
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
+
 def gelu(x):
     return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
+
 
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-12):
@@ -23,7 +25,9 @@ class LayerNorm(nn.Module):
         x = (x - u) / torch.sqrt(s + self.variance_epsilon)
         return self.weight * x + self.bias
 
+
 class Conv1D(nn.Module):
+    """linear(nx, nf)"""
     def __init__(self, nf, nx):
         super(Conv1D, self).__init__()
         self.nf = nf
@@ -34,9 +38,10 @@ class Conv1D(nn.Module):
 
     def forward(self, x):
         size_out = x.size()[:-1] + (self.nf,)
-        x = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight)
+        x = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight)  # b + x @ w
         x = x.view(*size_out)
         return x
+
 
 class Attention(nn.Module):
     def __init__(self, nx, n_ctx, config, scale=False):

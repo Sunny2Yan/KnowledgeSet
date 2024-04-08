@@ -1,8 +1,11 @@
 # llm interview
 
 ## 基础
-cross entropy公式
-交叉熵损失函数写一下，物理意义是什么
+1. cross entropy (用来度量两个概率分布间的差异)
+   $H(p, q) = -\sum_{x} p(x) \log(q(x))$; 交叉熵刻画了两个概率分布之间的距离，值越小，两个概率分布越接近
+   对于二分类：$L=\frac{1}{N}\sum_{i}L_i =- \frac{1}{N} \sum_{i}[y_i \log(p_i)]$; y表示真实分布
+   对于多分类：$L=\frac{1}{N}\sum_{i}L_i =- \frac{1}{N} \sum_{i} \sum_{c=1}^{M}y_{ic}\log(p_{ic})$; $y_{ic}$取0或1，样本i的类别等于c取1
+
 KL散度理解？  
 其中对数概率的作用？
 Recall，Precision的计算
@@ -13,21 +16,97 @@ Recall，Precision的计算
 
 ## 分词
 tokenizer 的分词方法
-
+   [tokenization](notes/llm/tokenizer.md)
 ## 模型结构
-1. attention (多头：可以学习到不同的知识，增强表达能力)
+1. attention
+   $att=softmax(\frac{qk^T}{\sqrt{d}}) v$
+   初始的Attention很接近one hot分布，不除以根号d，会造成梯度消失
+   multi_head：可以学习到不同的知识，增强表达能力
 2. transformer 结构、位置编码
-3. Bert结构、输入、输出、预训练任务、特点等等
-4. gpt结构、损失函数、gpt1-3的区别
-5. llama结构、rmsnorm、激活函数swiGLU、position embedding构造方法
+   单向transformer模型:
+   pre-training:
+   fine-tuning:
+   Loss: CrossEntropyLoss 交叉熵损失
 
-为什么计算注意力 QK 分数要除以维度开根号  (scaling后进行softmax操作可以使得输入的数据的分布变得更好，数值会进入敏感区间，防止梯度消失，让模型能够更容易训练。)
-位置嵌入
+   结构：(n_layers=6, att_head=8, hidden=512, mlp_hidden=4*hidden, seq_len=256)
+   tokenization: SentencePiece + BPE
+   position: $PE(pos, 2i)=sin(pos / 10000^{2i / d}); PE(pos, 2i+1)=cos(pos / 10000^{2i / d})$
+   embedding: token_embed + position_embed
+   activation: ReLU
+   normalization: layernorm ($w * (x - \hat{x}) / (s + \epsilon) + b$
+
+   6 * EncoderBlock (=> norm(x + dropout(multi_head_att(x))) -> norm(x + dropout(mlp(x))))  后norm ==> en_out
+   6 * DecoderBlock (=> norm(x + dropout(multi_head_att(x))) -> norm(x + dropout(cross_att(x, en_out, en_out))) -> norm(x + dropout(mlp(x))))  后norm -> linear
+   multi_head_att: x -> q, k, v -> att -> linear
+   cross_multi_head_att: x -> q, en_out = k, en_out = v -> att -> linear
+
+3. Bert (only-encoder)
+   双向transformer模型：$P(w_i | w_1, \cdots, w_{i-1}, w_{i+1}, \cdots, w_n)$
+   pre-training: (task_1: mask_lm(随机mask 15%并预测，vocab类)；
+                  task_2: next_sentence_predict(输入AB两个句子，判断B是不是A的下一句))
+   fine-Tuning: 分类(输入AB，判断两个句子是否具有相关性)
+   Loss：Negative Log Likelihood 负对数似然损失 $-\sum_1^n{\log{p(x_i; \theta)}}$
+   
+   结构：(n_layer=12, att_head=12, hidden=768, mlp_hidden=4*hidden, dropout=0.1, seq_len=512)
+   tokenization: WordPiece
+   position: $PE(pos, 2i)=sin(pos / 10000^{2i / d}); PE(pos, 2i+1)=cos(pos / 10000^{2i / d})$
+   embedding: token_embed + position_embed + segment_embed(句子拼接: [cls]A[sep]B[sep] ==> 000111)
+   activation: $GELU(x)=x/2 *(1 + tanh(\sqrt{(2 / \pi)}*(x + 0.44715x^3)) )$
+   normalization: layernorm ($w * (x - \hat{x}) / (s + \epsilon) + b$
+   
+   12 * EncoderBlock (=> x + multi_head_att(norm(x)) -> x + mlp(norm(x)) -> dropout)  先norm
+   multi_head_att: x -> q, k, v -> att -> linear
+
+4. GPT (only-decoder)
+   单向transformer模型：$P(w_i | w_{i-k}, \cdots, w_{i-1})$
+   pre-training: 根据第一个token预测后面的token; LMHead: linear(vocab)
+   fine-tuning: n分类问题; ClsHead: linear(vocab) -> linear(n)
+   Loss: CrossEntropyLoss 交叉熵损失 (fine-tune时，cls_loss + ratio * lm_loss, 防止下游精调时出现灾难性遗忘问题)
+   
+   结构：(n_layers=12, att_head=12, hidden=768, mlp_hidden=4*hidden, dropout=0.1, seq_len=512)
+   tokenization: SentencePiece (gpt1); BPE (gpt2)
+   position: nn.Embedding(0-512) (gpt1)
+   embedding: token_embed + position_embed
+   activation: $GELU(x)=x/2 *(1 + tanh(\sqrt{(2 / \pi)}*(x + 0.44715x^3)) )$
+   normalization: layernorm ($w * (x - \hat{x}) / (s + \epsilon) + b$
+
+   12 * DecoderBlock (=> norm(x + dropout(multi_head_att(x))) -> norm(x + dropout(mlp(x))))  gpt2先norm
+   mask_multi_head_att: x -> q, k, v -> mask_att -> linear
+   mask_att: att_score = mask(att_score)
+
+   gpt2中引入了past_key_value, 防止模型在文本生成任务中重新计算上一次迭代计算好的上下文值；
+   gpt3中引入了稀疏注意力机制和自适应注意力跨度来提高计算效率和长距离依赖的建模能力
+
+5. llama结构、rmsnorm、激活函数swiGLU、position embedding构造方法
+   单向transformer模型：$P(w_i | w_{i-k}, \cdots, w_{i-1})$
+   pre-training: 根据前面的token预测后一个token， temperature > 0时，softmax(logits/temperature)并采样top_p
+   fine-tuning: sft, instruction-tuning
+   Loss: CrossEntropyLoss 交叉熵损失
+
+   结构：(n_layers=32, att_head=32, hidden=4096, mlp_hidden=4*hidden, seq_len=2048)  llama2: seq_len=4096
+   tokenization: SentencePiece + BPE
+   position: RoPE [旋转位置编码](notes/llm/position.md)
+   embedding: token_embed + position_embed
+   activation: $SiLU(x) = x * sigmoid(x)$
+   normalization: RMSNorm ($W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$)
+
+   32 * DecoderBlock (=> x + multi_head_att(norm(x)) -> x + mlp(norm(x)))  先norm
+   mask_multi_head_att: x -> q, k, v -> rope(q, k) -> mask_att -> linear
+   mask_att: att_score = mask(att_score)
 
 ## peft
-1. LORA的理解 
-2. Ptuning和全量微调对比
-3. 介绍lora，p-turing，各自优缺点
+1. prompt tuning (sft)
+   hard prompt: 类似于in-context-learning中的few shot.
+   soft prompt: 把 Prompt 的生成作为一个任务进行学习，相当于把人工设计离散的 Prompt 变成模型自己进行学习、尝试（连续）
+
+   Prompt Tuning: 训练一个PromptEmbedding层，将人工输入或随机的prompt template调整为模型能够理解的 prompt token。 
+   流程：frozen llm, token_embedding = prompt_embedding + text_embedding (原始模型的embedding输出)
+
+2. prefix tuning (sft)
+   
+3. LORA的理解 
+4. Ptuning和全量微调对比
+5. 介绍lora，p-turing，各自优缺点
 
 ## 训练
 1. sft

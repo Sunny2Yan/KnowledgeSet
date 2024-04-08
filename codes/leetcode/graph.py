@@ -152,3 +152,4 @@ class Graph(object):
     def __init__(self):
         ...
 
+from peft import PromptTuningConfig, get_peft_model, TaskType, PromptTuningInit

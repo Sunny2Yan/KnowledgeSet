@@ -209,7 +209,7 @@ $$
    即将新的长度按比例压缩到原来窗口内，压缩后更加“拥挤”，通常需要微调。
 3. NTK (高频外推、低频内插)
    位置n的旋转位置编码本质上是$\beta$进制编码，即，RoPE的构造基础就是Sinusoidal位置编码：
-   $$[cos(\frac{n}{\beta^0}), sin(\frac{n}{\beta^0}), cos(\frac{n}{\beta^1}), sin(\frac{n}{\beta^1}), \cdots, cos(\frac{n}{\beta^{d/2-1}}), sin(\frac{n}{\beta^{d/2-1}})], \beta=10000^{2/d}$$
+   $$[cos(\frac{0}{\beta^0}), sin(\frac{1}{\beta^0}), cos(\frac{2}{\beta^1}), sin(\frac{3}{\beta^1}), \cdots, cos(\frac{n-1}{\beta^{d/2-1}}), sin(\frac{n}{\beta^{d/2-1}})], \beta=10000^{2/d}$$
    其中，最低频是 $\frac{n}{\beta^{d/2−1}}$ 项，引入参数 $\lambda$ 变为 $\frac{n}{(\beta\lambda)^{d/2−1}}$ ，使其与内插一致，即：
    $$\frac{n}{(\beta\lambda)^{d/2−1}} = \frac{n/k}{\beta^{d/2−1}}$$
    解得 $\lambda=k^{2/(d−2)}$，code直接修改base `base = base * 8 ** (dim / (dim-2))`

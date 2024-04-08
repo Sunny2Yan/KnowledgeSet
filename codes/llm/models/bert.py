@@ -60,7 +60,7 @@ class BERTEmbedding(nn.Module):
 class Attention(nn.Module):
     def __init__(self):
         super().__init__()
-        softmax = nn.Softmax()
+        self.softmax = nn.Softmax()
 
     def forward(self, query, key, value, mask=None, dropout=None):
         scores = torch.matmul(query, key.transpose(-2, -1)) \
@@ -150,7 +150,8 @@ class ResidualConnection(nn.Module):
 
     def forward(self, x, sublayer):
         """Apply residual connection to any sublayer with the same size."""
-        return x + self.dropout(sublayer(self.norm(x)))
+        # return x + self.dropout(sublayer(self.norm(x)))  # 提前做LN
+        return self.norm(x + self.dropout(sublayer(x)))  # 标准的transformer LN顺序
 
 
 class TransformerBlock(nn.Module):
@@ -175,7 +176,8 @@ class TransformerBlock(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, mask):
-        x = self.input_sublayer(x, lambda _x: self.attention.forward(_x, _x, _x, mask=mask))
+        x = self.input_sublayer(x, lambda _x: self.attention.forward(
+            _x, _x, _x, mask=mask))  # _x: q, k, v
         x = self.output_sublayer(x, self.feed_forward)
         return self.dropout(x)
 
