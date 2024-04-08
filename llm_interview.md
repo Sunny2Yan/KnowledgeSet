@@ -103,10 +103,15 @@ tokenizer 的分词方法
    流程：frozen llm, token_embedding = prompt_embedding + text_embedding (原始模型的embedding输出)
 
 2. prefix tuning (sft)
+
+3. p-tuning
    
-3. LORA的理解 
-4. Ptuning和全量微调对比
-5. 介绍lora，p-turing，各自优缺点
+4. lora
+
+5. qlora
+
+6. Ptuning和全量微调对比
+7. 介绍lora，p-turing，各自优缺点
 
 ## 训练
 1. sft
