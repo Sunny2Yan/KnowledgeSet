@@ -10,7 +10,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers.pytorch_utils import Conv1D
 
-from ..import_utils import is_bnb_available
 from ..utils import (
     TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING,
     ModulesToSaveWrapper,
@@ -22,42 +21,18 @@ from ..utils import (
 )
 
 
-if is_bnb_available():
-    import bitsandbytes as bnb
-
-
 @dataclass
 class LoraConfig(PeftConfig):
-    """
-    This is the configuration class to store the configuration of a [`LoraModel`].
-
-    Args:
-        r (`int`): Lora attention dimension.
-        target_modules (`Union[List[str],str]`): The names of the modules to apply Lora to.
-        lora_alpha (`float`): The alpha parameter for Lora scaling.
-        lora_dropout (`float`): The dropout probability for Lora layers.
-        fan_in_fan_out (`bool`): Set this to True if the layer to replace stores weight like (fan_in, fan_out).
-        For example, gpt-2 uses `Conv1D` which stores weights like (fan_in, fan_out) and hence this should be set to `True`.:
-        bias (`str`): Bias type for Lora. Can be 'none', 'all' or 'lora_only'
-        modules_to_save (`List[str]`):List of modules apart from LoRA layers to be set as trainable
-            and saved in the final checkpoint.
-    """
-
-    r: int = field(default=8, metadata={"help": "Lora attention dimension"})
-    target_modules: Optional[Union[List[str], str]] = field(
-        default=None,
-        metadata={
-            "help": "List of module names or regex expression of the module names to replace with Lora."
-            "For example, ['q', 'v'] or '.*decoder.*(SelfAttention|EncDecAttention).*(q|v)$' "
-        },
-    )
-    lora_alpha: int = field(default=None, metadata={"help": "Lora alpha"})
-    lora_dropout: float = field(default=None, metadata={"help": "Lora dropout"})
+    r: int = 8  # 参数矩阵的秩
+    # 指定Lora模块，eg：["q_proj", "k_proj", "v_proj", "fc_in", "fc_out", "wte"]  token_embedding
+    target_modules: Optional[Union[List[str], str]] = None
+    lora_alpha: int = None  # lora比例因子，值越大更新越积极
+    lora_dropout: float = None
     fan_in_fan_out: bool = field(
         default=False,
         metadata={"help": "Set this to True if the layer to replace stores weight like (fan_in, fan_out)"},
     )
-    bias: str = field(default="none", metadata={"help": "Bias type for Lora. Can be 'none', 'all' or 'lora_only'"})
+    bias: str = "none"
     modules_to_save: Optional[List[str]] = field(
         default=None,
         metadata={
@@ -66,10 +41,7 @@ class LoraConfig(PeftConfig):
             "the final layer `classifier/score` are randomly initialized and as such need to be trainable and saved."
         },
     )
-    init_lora_weights: bool = field(
-        default=True,
-        metadata={"help": "Whether to initialize the weights of the Lora layers."},
-    )
+    init_lora_weights: bool = True
 
     def __post_init__(self):
         self.peft_type = PeftType.LORA
@@ -89,7 +61,7 @@ class LoraModel(torch.nn.Module):
     Example:
 
         ```py
-        >>> from transformers import AutoModelForSeq2SeqLM, LoraConfig
+        >>> from transformers import AutoModelForSeq2SeqLM
         >>> from peft import LoraModel, LoraConfig
 
         >>> config = LoraConfig(
@@ -397,18 +369,15 @@ def mark_only_lora_as_trainable(model: nn.Module, bias: str = "none") -> None:
 
 
 class LoraLayer:
-    def __init__(
-        self,
-        in_features: int,
-        out_features: int,
-    ):
+    def __init__(self, in_features: int, out_features: int):
         self.r = {}
         self.lora_alpha = {}
         self.scaling = {}
         self.lora_dropout = nn.ModuleDict({})
+        # 线性层：q_linear, k_linear, v_linear, out_linear, mlp_1, mlp_2
         self.lora_A = nn.ModuleDict({})
         self.lora_B = nn.ModuleDict({})
-        # For Embedding layer
+        # Embedding层：token_embedding
         self.lora_embedding_A = nn.ParameterDict({})
         self.lora_embedding_B = nn.ParameterDict({})
         # Mark the weight as unmerged
@@ -417,7 +386,9 @@ class LoraLayer:
         self.in_features = in_features
         self.out_features = out_features
 
-    def update_layer(self, adapter_name, r, lora_alpha, lora_dropout, init_lora_weights):
+    def update_layer(self, adapter_name, r, lora_alpha,
+                     lora_dropout, init_lora_weights):
+        """更新线性层"""
         self.r[adapter_name] = r
         self.lora_alpha[adapter_name] = lora_alpha
         if lora_dropout > 0.0:
@@ -425,17 +396,22 @@ class LoraLayer:
         else:
             lora_dropout_layer = nn.Identity()
 
-        self.lora_dropout.update(nn.ModuleDict({adapter_name: lora_dropout_layer}))
+        self.lora_dropout.update(nn.ModuleDict({
+            adapter_name: lora_dropout_layer}))
         # Actual trainable parameters
         if r > 0:
-            self.lora_A.update(nn.ModuleDict({adapter_name: nn.Linear(self.in_features, r, bias=False)}))
-            self.lora_B.update(nn.ModuleDict({adapter_name: nn.Linear(r, self.out_features, bias=False)}))
+            self.lora_A.update(nn.ModuleDict({
+                adapter_name: nn.Linear(self.in_features, r, bias=False)}))
+            self.lora_B.update(nn.ModuleDict({
+                adapter_name: nn.Linear(r, self.out_features, bias=False)}))
             self.scaling[adapter_name] = lora_alpha / r
         if init_lora_weights:
             self.reset_lora_parameters(adapter_name)
         self.to(self.weight.device)
 
-    def update_layer_embedding(self, adapter_name, r, lora_alpha, lora_dropout, init_lora_weights):
+    def update_layer_embedding(self, adapter_name, r, lora_alpha,
+                               lora_dropout, init_lora_weights):
+        """更新embedding层"""
         self.r[adapter_name] = r
         self.lora_alpha[adapter_name] = lora_alpha
         if lora_dropout > 0.0:
@@ -443,14 +419,17 @@ class LoraLayer:
         else:
             lora_dropout_layer = nn.Identity()
 
-        self.lora_dropout.update(nn.ModuleDict({adapter_name: lora_dropout_layer}))
+        self.lora_dropout.update(nn.ModuleDict({
+            adapter_name: lora_dropout_layer}))
         # Actual trainable parameters
         if r > 0:
             self.lora_embedding_A.update(
-                nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((r, self.in_features)))})
+                nn.ParameterDict({adapter_name: nn.Parameter(
+                    self.weight.new_zeros((r, self.in_features)))})
             )
             self.lora_embedding_B.update(
-                nn.ParameterDict({adapter_name: nn.Parameter(self.weight.new_zeros((self.out_features, r)))})
+                nn.ParameterDict({adapter_name: nn.Parameter(
+                    self.weight.new_zeros((self.out_features, r)))})
             )
             self.scaling[adapter_name] = lora_alpha / r
         if init_lora_weights:
@@ -458,12 +437,11 @@ class LoraLayer:
         self.to(self.weight.device)
 
     def reset_lora_parameters(self, adapter_name):
+        """初始化lora权值"""
         if adapter_name in self.lora_A.keys():
-            # initialize A the same way as the default for nn.Linear and B to zero
             nn.init.kaiming_uniform_(self.lora_A[adapter_name].weight, a=math.sqrt(5))
             nn.init.zeros_(self.lora_B[adapter_name].weight)
         if adapter_name in self.lora_embedding_A.keys():
-            # initialize a the same way as the default for nn.linear and b to zero
             nn.init.zeros_(self.lora_embedding_A[adapter_name])
             nn.init.normal_(self.lora_embedding_B[adapter_name])
 
@@ -505,7 +483,8 @@ class Linear(nn.Linear, LoraLayer):
         if self.r[self.active_adapter] > 0:
             self.weight.data += (
                 transpose(
-                    self.lora_B[self.active_adapter].weight @ self.lora_A[self.active_adapter].weight,
+                    self.lora_B[self.active_adapter].weight
+                    @ self.lora_A[self.active_adapter].weight,
                     self.fan_in_fan_out,
                 )
                 * self.scaling[self.active_adapter]
@@ -635,64 +614,3 @@ class Embedding(nn.Embedding, LoraLayer):
             return result
         else:
             return nn.Embedding.forward(self, x)
-
-
-if is_bnb_available():
-
-    class Linear8bitLt(bnb.nn.Linear8bitLt, LoraLayer):
-        # Lora implemented in a dense layer
-        def __init__(
-            self,
-            adapter_name,
-            in_features,
-            out_features,
-            r: int = 0,
-            lora_alpha: int = 1,
-            lora_dropout: float = 0.0,
-            **kwargs,
-        ):
-            bnb.nn.Linear8bitLt.__init__(
-                self,
-                in_features,
-                out_features,
-                bias=kwargs.get("bias", True),
-                has_fp16_weights=kwargs.get("has_fp16_weights", True),
-                memory_efficient_backward=kwargs.get("memory_efficient_backward", False),
-                threshold=kwargs.get("threshold", 0.0),
-                index=kwargs.get("index", None),
-            )
-            LoraLayer.__init__(self, in_features=in_features, out_features=out_features)
-
-            # Freezing the pre-trained weight matrix
-            self.weight.requires_grad = False
-
-            init_lora_weights = kwargs.pop("init_lora_weights", True)
-            self.update_layer(adapter_name, r, lora_alpha, lora_dropout, init_lora_weights)
-            self.active_adapter = adapter_name
-
-        def forward(self, x: torch.Tensor):
-            result = super().forward(x)
-
-            if self.disable_adapters or self.active_adapter not in self.lora_A.keys():
-                return result
-            elif self.r[self.active_adapter] > 0:
-                if not torch.is_autocast_enabled():
-                    expected_dtype = result.dtype
-
-                    if x.dtype != torch.float32:
-                        x = x.float()
-                    output = (
-                        self.lora_B[self.active_adapter](
-                            self.lora_A[self.active_adapter](self.lora_dropout[self.active_adapter](x))
-                        ).to(expected_dtype)
-                        * self.scaling[self.active_adapter]
-                    )
-                else:
-                    output = (
-                        self.lora_B[self.active_adapter](
-                            self.lora_A[self.active_adapter](self.lora_dropout[self.active_adapter](x))
-                        )
-                        * self.scaling[self.active_adapter]
-                    )
-                result += output
-            return result

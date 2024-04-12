@@ -63,3 +63,12 @@ class PrefixEncoder(torch.nn.Module):
         else:
             past_key_values = self.embedding(prefix)
         return past_key_values
+
+
+if __name__ == '__main__':
+    from peft import PrefixTuningConfig, get_peft_model, TaskType
+
+    model = None
+    config = PrefixTuningConfig(task_type=TaskType.CAUSAL_LM,
+                                num_virtual_tokens=10, prefix_projection=True)
+    model = get_peft_model(model, config)

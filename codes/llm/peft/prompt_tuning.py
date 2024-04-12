@@ -63,7 +63,7 @@ class PromptEmbedding(torch.nn.Module):
             # Trim or iterate until num_text_tokens matches total_virtual_tokens
             num_text_tokens = len(init_token_ids)
 
-            # 调整或重复文本，以匹配总的虚拟标记数量
+            #
             if num_text_tokens > total_virtual_tokens:
                 init_token_ids = init_token_ids[:total_virtual_tokens]
             elif num_text_tokens < total_virtual_tokens:

@@ -6,9 +6,12 @@
    对于二分类：$L=\frac{1}{N}\sum_{i}L_i =- \frac{1}{N} \sum_{i}[y_i \log(p_i)]$; y表示真实分布
    对于多分类：$L=\frac{1}{N}\sum_{i}L_i =- \frac{1}{N} \sum_{i} \sum_{c=1}^{M}y_{ic}\log(p_{ic})$; $y_{ic}$取0或1，样本i的类别等于c取1
 
-KL散度理解？  
-其中对数概率的作用？
-Recall，Precision的计算
+2. kl divergence
+   $L(y_{pre}, y_{ture}) = y_{true} \log{\frac{y_{ture}}{y_{pre}}} = y_{true}(\log{y_{true}} - \log{y_{pre}})$
+
+3. Precision, Recall
+
+
 场景题，在处理数据的时候面对有违规的语料（如黄暴内容）如何平衡Recall，Precision指标
 大模型灾难遗忘怎么解决
 如何避免模型过拟合
@@ -101,54 +104,92 @@ tokenizer 的分词方法
 
    Prompt Tuning: 训练一个PromptEmbedding层，将人工输入或随机的prompt template调整为模型能够理解的 prompt token。 
    流程：frozen llm, token_embedding = prompt_embedding + text_embedding (原始模型的embedding输出)
+   初始化：任务相关的实体文本进行tokenize来初始化 （10-20 token）
 
 2. prefix tuning (sft)
+   传统的fine-tuning花费较大，且不同的下游任务需要存储不同的模型，prefix只需要保存prefix layer即可
+
+   流程：添加一个prefix(embed+mlp或直接embed)，自回归模型表示为 [prefix;x;y]; encoder-decoder模型表示为 [prefix;x;prefix';y]
+   初始化：Embedding(num_virtual_tokens, token_dim) 没有实际意义
 
 3. p-tuning
+   针对encoder-decoder模型，添加 MLP(LSTM(input_embed)) 模块
    
-4. lora
+5. lora
+   llm在预训练后，越大的模型权重矩阵的秩越小，于是将需要fine-tune的参数矩阵W变成两个小矩阵的乘积 W=AB，即：$W_0+\Delta W=W_0 +AB$
 
-5. qlora
-
-6. Ptuning和全量微调对比
-7. 介绍lora，p-turing，各自优缺点
+   流程：
+   初始化：A（高斯分布），B（初始化为0）
 
 ## 训练
-1. sft
-训练数据量级？
-训练方法，用的什么sft，有什么不同，有什么优缺点，原理上解释不不同方法的差别
-模型微调会性能下降为什么还需要这一步？
-prompt tuning, instruct tuning, fine tuning差别
-如何关注训练过程中的指标？ 训练步数如何确定？
-评估指标是什么，这些指标存在哪些问题
+### sft
+训练数据量级：llama(1T); llama2(2T)
+训练步数: 一般3个epoch
+评估指标: ，这些指标存在哪些问题
 
-2. rlhf
-马尔科夫决策过程的定义，有哪些参数变量需要考虑？
+### rlhf
+1. 马尔科夫决策过程:
+马尔可夫决策过程是一个4元组 $(S,A,P_{a},R_{a})$，其中：
+   - S是状态空间的集合
+   - A是动作的集合
+   - $P_{a}(s,s')=P(s_{t+1}=s'\mid s_{t}=s,a_{t}=a)$ 是 t 时刻 s 状态下的动作 a 导致 t+1 时刻进入状态 s' 的概率
+   - $R_{a}(s,s')$ 状态 s 经过动作 a 转换到状态 s' 后收到的即时奖励（或预期的即时奖励）
+   - 策略函数 $\pi$ 是从状态空间 S 到动作空间 A 的映射。
+
 有了解隐马尔科夫链吗，细说(给出公式那种)
 CRF
 
-RLHF流程、优化目标公式、
+2. [RLHF流程](notes/llm/rlhf.md)
+   policy: GPT; action_space: 全词表; observation_space: 全词表*seq_len; reward;
+
+   step 1: query_tensor -> sft_model -> response_tensor
+   step 2: query_tensor + response_tensor -> reward_model(小) -> reward
+   step 3: 
+      ```
+      q_a -> reward_model            -> score            -> +
+      q_a -> actor_model             -> logits_1 -|
+                                                  |-> kl(logits_1 || logits_2)
+      q_a -> critic_model(ref_model) -> logits_2 -|
+      ```
+   优化目标: $r=r_{\theta} - \lambda r_{KL}$
+
 目标公式中衰减因子的作用，取大取小有什么影响？
 RLHF的目标公式可以加入什么其他的项？
 熵正则项是如何加入的？ 
-
-为什么需要Rewar model？
-Reward model 如何训练？Reward model 你觉得训练到什么程度可以？
-Reward model不准确怎么办？
-Rewar model和训练的LLM模型用同一个基座模型可能有什么作用？
-Reward有多个目标可以怎么做？
-Reward model 训练的loss是什么？
 RLHF中PPO算比率相对什么来算？
 为啥RLHF中要用PPO？和其他RL算法的区别？
-DPO、DPO的原理？
 
-```
-RM（Reward Model，奖励模型）的数据格式
-输入数据是一个句子，奖励数据是一个实数值，表示对输入数据的评价。每一行代表一个样本，第一列是输入数据，第二列是对应的奖励数据
-Input,Reward
-"This is a sentence.",0.8
-"Another sentence.",0.2
-```
+3. Reward model
+   数据格式：RewardDataCollatorWithPadding
+   ```
+      input_ids_chosen: "question + good_answer"
+      attention_mask_chosen`
+      input_ids_rejected: "question + bad_answer"
+      attention_mask_rejected
+   ```
+   model: 类型(SEQ_CLS)属于Text classification (1分类，即打分)
+   loss: $-LogSigmoid(x) = -\log{(\frac{1}{1+e^{-x}})}$, 即 `-nn.functional.logsigmoid(rewards_chosen - rewards_rejected).mean()`
+   trick：使用多个奖励模型的输出，增加数据度量的信息源
+   Reward多目标：？？？
+
+4. 近端策略优化 (Proximal Policy Optimization, PPO)
+   ```
+   初始化policy参数 $\theta_0$ 和惩罚项权值 $\beta_0$，kl-divergence $delta$
+   for $k = 0, 1, 2, \cdots$ do:
+   在policy $\pi_k=\pi(\theta_k)$ 上收集一批经验数据 $D = {(s, a, r, s')}$
+   对于 $D$ 中的每个经验 $(s, a, r, s')$ do:
+      使用任意的优势评估算法评估优势 $\hat{A_t^{\pi_k}}$
+      计算policy更新：$\theta_k+1 = \arg\max_{\theta} L_{\theta_k}(\theta) - \beta_k D_{kl}(\theta || \theta_k)$
+      if $D_{kl}(\theta_k+1 || \theta_k) \leq 1.5\delta$ :
+         $\beta_{k+1} = 2 \beta$
+      elif $D_{kl}(\theta_k+1 || \theta_k) \geq delta/1.5$:
+         $\beta_{k+1} = \beta / 2$ 
+   end for   
+   ```
+   
+5. DPO
+PPO、DPO的原理？
+
 
 ## 推理
 模型推理是怎么做的，有没有cot，tot等等，还是单轮
