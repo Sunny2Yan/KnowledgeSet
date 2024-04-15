@@ -146,12 +146,14 @@ CRF
    step 2: query_tensor + response_tensor -> reward_model(小) -> reward
    step 3: 
       ```
-      q_a -> reward_model            -> score            -> +
-      q_a -> actor_model             -> logits_1 -|
-                                                  |-> kl(logits_1 || logits_2)
-      q_a -> critic_model(ref_model) -> logits_2 -|
+      q_a -> reward_model(freeze)  -> score
+      q_a -> actor_model           -> log_probs -    |
+                                                     |-> kl(log_probs || ref_log_probs)
+      q_a -> ref_model(freeze)     -> ref_log_probs -|
       ```
-   优化目标: $r=r_{\theta} - \lambda r_{KL}$
+   ref_model是冻结的sft_model，其目的是防止actor训歪。
+
+   优化目标:
 
 目标公式中衰减因子的作用，取大取小有什么影响？
 RLHF的目标公式可以加入什么其他的项？
@@ -172,39 +174,77 @@ RLHF中PPO算比率相对什么来算？
    trick：使用多个奖励模型的输出，增加数据度量的信息源
    Reward多目标：？？？
 
-4. 近端策略优化 (Proximal Policy Optimization, PPO)
-   ```
+4. PPO (Proximal Policy Optimization, 近端策略优化)
+
    初始化policy参数 $\theta_0$ 和惩罚项权值 $\beta_0$，kl-divergence $delta$
    for $k = 0, 1, 2, \cdots$ do:
-   在policy $\pi_k=\pi(\theta_k)$ 上收集一批经验数据 $D = {(s, a, r, s')}$
-   对于 $D$ 中的每个经验 $(s, a, r, s')$ do:
-      使用任意的优势评估算法评估优势 $\hat{A_t^{\pi_k}}$
-      计算policy更新：$\theta_k+1 = \arg\max_{\theta} L_{\theta_k}(\theta) - \beta_k D_{kl}(\theta || \theta_k)$
-      if $D_{kl}(\theta_k+1 || \theta_k) \leq 1.5\delta$ :
-         $\beta_{k+1} = 2 \beta$
-      elif $D_{kl}(\theta_k+1 || \theta_k) \geq delta/1.5$:
-         $\beta_{k+1} = \beta / 2$ 
-   end for   
-   ```
+      $\;\;\;\;$ 在policy $\pi_k=\pi(\theta_k)$ 上收集一批经验数据 $D_k$
+      $\;\;\;\;$ 使用任意的优势评估算法评估优势 $\hat{A_t^{\pi_k}}$
+      $\;\;\;\;$ 通过执行 K 步minibatch来计算policy更新： $\theta_{k+1} = \arg\max_{\theta} L_{\theta_k}(\theta) - \beta_k D_{kl}(\theta || \theta_k)$
+      $\;\;\;\;$ if $D_{kl}(\theta_{k+1} || \theta_k) \leq 1.5\delta$ :
+         $\;\;\;\;$ $\;\;\;\;$ $\beta_{k+1} = 2 \beta$
+      $\;\;\;\;$ elif $D_{kl}(\theta_{k+1} || \theta_k) \geq \delta/1.5$:
+         $\;\;\;\;$ $\;\;\;\;$ $\beta_{k+1} = \beta / 2$
    
 5. DPO
-PPO、DPO的原理？
 
 
-## 推理
-模型推理是怎么做的，有没有cot，tot等等，还是单轮
+## Prompt Engineering
+1. Prompt Creator (提示词生成器)
+   假设你是一个prompt export，我想让chatgpt用python代码实现一个计算器，请给我一个好的prompt。
+
+2. Structured Prompt：角色 + 任务 + 要求 + 提示
+   角色：假设你是一个有着丰富经验的python程序员。
+   任务：请用python代码绘制一个五角星。
+   要求：请使用matplotlib这个库，线条使用红色。
+   提示：五角星需要先计算五个顶点，然后在间隔一个顶点的两个顶点之间两两进行连线。
+
+3. One / Few Shot Prompt
+   将英语翻译为汉语：
+   big => 大
+   small =>
+
+4. COT (Chain of Thought)
+   one-shot cot:
+   Q: Roger有5个网球。他又买了两罐网球，每个罐子有3个网球。他现在有多少个网球?
+   A: Roger一开始有5个球。2罐3个网球，每罐等于6个网球。5 + 6 = 11。答案是11。
+   Q: 餐厅有23个苹果。如果他们使用了20个苹果做午餐，又买了6个，他们还有多少个苹果?
+   
+   zero-shot cot:
+   餐厅有23个苹果。如果他们使用了20个苹果做午餐，又买了6个，他们还有多少个苹果?
+   让我们一步步思考 / 让我们逐步解决这个问题，以确保我们得到正确的答案(优先)。
+   (Let's think step by step / Let's work this out in a step by step way to be sure we have the right answer.)
+
+5. ReACT (Reason+Act 协同思考和动作) 
+   一种reinforce language agents，按照 think -> act -> observation -> think... 的模式来解决问题。其中，act就是和环境交互(如：查询互联网，调用工具，执行代码等)。
+   
+   prompt：尽你所能回答以下问题。您可以访问以下工具:\n\n{tools}\n\n使用以下格式:\n\nQuestion: 您必须回答的输入问题\nThought: 你应该经常思考要做什么\nAction: 要采取的行动，应该是 [{tool_names}] 中之一\nAction Input: 动作的输入\nObservation: 动作的结果\n... (其中 Thought/Action/Action Input/Observation 可以重复N次)\nThought: 我现在知道最后的答案了\nFinal Answer: 原始输入问题的最终答案\n\nBegin!\n\nQuestion: {input}\nThought:{agent_scratchpad}
+
+6. Reflexion (失败后自我反思) 
+   一种reinforce language agents，按照 task -> trajectory -> evaluation -> Reflection(如果失败则反思) -> next trajectory... 的模式来解决问题。
 
 ## rag
 langchain中的每个模块都了解么；
 如何根据本地知识库实现对话；（rag）
 
-## 问题1：context length
-如何解决content length长度问题
+## 问题1：[context length](notes/llm/position.md)
+解决content length长度问题
 
 ## 问题二： 幻觉
-模型为什么会胡言乱语？根源在哪？可以考虑如何解决？
-大模型主要存在的问题和解决思路（幻觉，定向编辑，继续训练等等）
+定义：大模型回答不准确、前后不一致等问题，生成的内容并非基于训练数据或不符合事实。
+
+原因：
+   1. 数据质量：训练数据的质量如果存在偏差或不足，模型可能无法泛化到新情境，导致出现幻觉；
+   2. 最大似然性目标：大模型的训练目标是最大化下一个token的概率，因此，模型更看重看起来正确，而不是输出内容的正确性；
+   3. 上下文理解：大模型需要理解上下文信息来生成准确的答案，如果上下文窗口长度不足或模型无法有效处理上下文信息，就会导致模型无法理解上下文含义，从而产生幻觉。
+
+解决方法：
+   1. 提高数据质量（包括预训练数据和sft数据）；
+   2. 采用更长更好的位置编码；
+   3. prompt工程：采用更合理的prompt（如：cot），或agent（如：ReAct）或要求大模型不确定的不回答；
+   4. RAG借助外部知识，严格按照给定知识回答； 
+   5. 集成学习：将多个模型的预测结果进行集成，以提高预测的准确性和鲁棒性。
 
 ## 问题三：加速
+训练加速：[deepspeed]()
 大模型加速框架了解多少，知不知道原理 如何进行加速优化
-deepspeed框架介绍

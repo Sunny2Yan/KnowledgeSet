@@ -176,7 +176,7 @@ from transformers import (
     PreTrainedTokenizerFast,
 )
 
-from ..core import (
+from trl.core import (
     WANDB_PADDING,
     PPODecorators,
     clip_by_value,
@@ -191,14 +191,14 @@ from ..core import (
     stack_dicts,
     stats_to_np,
 )
-from ..import_utils import is_npu_available, is_torch_greater_2_0, is_xpu_available
-from ..models import (
+from trl.import_utils import is_npu_available, is_torch_greater_2_0, is_xpu_available
+from trl.models import (
     SUPPORTED_ARCHITECTURES,
     PreTrainedModelWrapper,
     create_reference_model,
     unwrap_model_for_generation,
 )
-from . import AdaptiveKLController, BaseTrainer, FixedKLController, PPOConfig, RunningMoments
+from trl.trainer import AdaptiveKLController, BaseTrainer, FixedKLController, PPOConfig, RunningMoments
 
 
 class PPOTrainer(BaseTrainer):
@@ -807,7 +807,7 @@ class PPOTrainer(BaseTrainer):
         full_kl_penalty = self.config.kl_penalty == "full"
 
         with torch.no_grad():
-            # log_logits, logits, value, mask
+            # log_logits, none, 模型输出值, mask
             all_logprobs, logits_or_none, values, masks = self.batched_forward_pass(
                 self.model,
                 queries,
@@ -1238,24 +1238,29 @@ class PPOTrainer(BaseTrainer):
         rewards: torch.FloatTensor,
         mask: torch.FloatTensor,
     ):
-        lastgaelam = 0
-        advantages_reversed = []
-        gen_len = rewards.shape[-1]
+        lastgaelam = 0  # 初始化上一个时间步的广义优势估计为0
+        advantages_reversed = []  # 存储每个时间步的反向广义优势估计
+        gen_len = rewards.shape[-1]  # 奖励张量的最后一个维度的长度，即时间步数
 
         values = values * mask
         rewards = rewards * mask
 
+        # 如果配置中指定了 whiten_rewards，则对奖励进行白化处理
         if self.config.whiten_rewards:
+            # reward的归一化：(values - mean) * torch.rsqrt(var + 1e-8)
             rewards = masked_whiten(rewards, mask, shift_mean=False)
 
         for t in reversed(range(gen_len)):
+            # 获取下一个时间步的估值。如果当前时间步不是最后一个时间步，则获取下一个时间步的估值；否则设置为0
             nextvalues = values[:, t + 1] if t < gen_len - 1 else 0.0
+            # 计算每个时间步的时序差分误差（TD error）
             delta = rewards[:, t] + self.config.gamma * nextvalues - values[:, t]
+            # 使用时序差分误差来更新上一个时间步的广义优势估计
             lastgaelam = delta + self.config.gamma * self.config.lam * lastgaelam
             advantages_reversed.append(lastgaelam)
         advantages = torch.stack(advantages_reversed[::-1]).transpose(0, 1)
 
-        returns = advantages + values
+        returns = advantages + values  # 计算回报，即广义优势估计加上估值
         advantages = masked_whiten(advantages, mask)
         advantages = advantages.detach()
         return values, advantages, returns
