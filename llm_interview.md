@@ -224,8 +224,56 @@ RLHF中PPO算比率相对什么来算？
    一种reinforce language agents，按照 task -> trajectory -> evaluation -> Reflection(如果失败则反思) -> next trajectory... 的模式来解决问题。
 
 ## rag
-langchain中的每个模块都了解么；
-如何根据本地知识库实现对话；（rag）
+langchain中的模块:
+   chains, prompts, models, indexes, memory, agents
+   1. chains: 链式pipeline
+   2. prompts: prompt templates
+   3. models: llms, chats, text_embedding
+   4. indexes: document_loaders, text_splitters, vectorstore, retrievers
+   5. memory: 内存管理，MessageHistory， buffer, KGMemory(知识图谱)...
+   6. agents: llm agent, multi agent ...
+
+langchain实现rag:
+   ```python
+   # step 1: load pdf
+   from langchain.document_loaders import PyPDFLoader
+   loader = PyPDFLoader("https://arxiv.org/pdf/2309.10305.pdf")
+   pages = loader.load_and_split()
+   
+   # step 2: split text
+   from langchain.text_splitter import RecursiveCharacterTextSplitter
+   text_splitter = RecursiveCharacterTextSplitter(
+      chunk_size = 500,
+      chunk_overlap = 50,)
+   docs = text_splitter.split_documents(pages)
+
+   # step 3: build vectorstore
+   from langchain.embeddings.openai import OpenAIEmbeddings
+   from langchain.vectorstores import FAISS  # local: faiss; online: pinecone
+
+   embed_model = OpenAIEmbeddings()
+   vectorstore = FAISS.from_documents(
+      documents=docs, embedding=embed_model , collection_name="openai_embed")
+
+   # step 4: retrieval 
+   query = "How large is the baichuan2 vocabulary?"
+   results = vectorstore.similarity_search(query, k=3)
+
+   # step 5: build prompt and model
+   from langchain.schema import SystemMessage, HumanMessage, AIMessage
+   from langchain.chat_models import ChatOpenAI
+   source_knowledge = "\n".join([x.page_content for x in results])
+   augmented_prompt = f"""Using the contexts below, answer the query.
+      contexts: {source_knowledge}
+      query: {query}"""
+   messages = [
+      SystemMessage(content="You are a helpful assistant."),
+      HumanMessage(content=augmented_prompt), ]
+   chat = ChatOpenAI(
+      openai_api_key="",
+      model='gpt-3.5-turbo')
+   res = chat(messages)
+   ```
 
 ## 问题1：[context length](notes/llm/position.md)
 解决content length长度问题
@@ -234,9 +282,10 @@ langchain中的每个模块都了解么；
 定义：大模型回答不准确、前后不一致等问题，生成的内容并非基于训练数据或不符合事实。
 
 原因：
-   1. 数据质量：训练数据的质量如果存在偏差或不足，模型可能无法泛化到新情境，导致出现幻觉；
-   2. 最大似然性目标：大模型的训练目标是最大化下一个token的概率，因此，模型更看重看起来正确，而不是输出内容的正确性；
-   3. 上下文理解：大模型需要理解上下文信息来生成准确的答案，如果上下文窗口长度不足或模型无法有效处理上下文信息，就会导致模型无法理解上下文含义，从而产生幻觉。
+   1. 数据质量：训练数据的质量不足，噪声较多，会导致出现幻觉；或是某一类数据大量重复导致模型产生偏好；
+   2. 解码过程中的随机性：top-k, top-p, temperature
+   3. 最大似然性目标：大模型的训练目标是最大化下一个token的概率，因此，模型更看重看起来正确，而不是输出内容的正确性；
+   4. 上下文理解：大模型需要理解上下文信息来生成准确的答案，如果上下文窗口长度不足或模型无法有效处理上下文信息，就会导致模型无法理解上下文含义，从而产生幻觉。
 
 解决方法：
    1. 提高数据质量（包括预训练数据和sft数据）；
@@ -246,5 +295,8 @@ langchain中的每个模块都了解么；
    5. 集成学习：将多个模型的预测结果进行集成，以提高预测的准确性和鲁棒性。
 
 ## 问题三：加速
-训练加速：[deepspeed]()
-大模型加速框架了解多少，知不知道原理 如何进行加速优化
+训练加速：[deepspeed](notes/llm/deepspeed.md)
+推理加速：
+   1. FlashAttention
+   2. PagedAttention 
+   3. TGI (Text Generation Inference)
