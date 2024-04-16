@@ -16,7 +16,7 @@
 
 ## 分词
 tokenizer 的分词方法
-   [tokenization](notes/llm/tokenizer.md)
+   [tokenization](../notes/llm/tokenizer.md)
 ## 模型结构
 1. attention
    $att=softmax(\frac{qk^T}{\sqrt{d}}) v$
@@ -85,7 +85,7 @@ tokenizer 的分词方法
 
    结构：(n_layers=32, att_head=32, hidden=4096, mlp_hidden=4*hidden, seq_len=2048)  llama2: seq_len=4096
    tokenization: SentencePiece + BPE
-   position: RoPE [旋转位置编码](notes/llm/position.md)
+   position: RoPE [旋转位置编码](../notes/llm/position.md)
    embedding: token_embed + position_embed
    activation: $SiLU(x) = x * sigmoid(x)$
    normalization: RMSNorm ($W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$)
@@ -136,7 +136,7 @@ tokenizer 的分词方法
 有了解隐马尔科夫链吗，细说(给出公式那种)
 CRF
 
-2. [RLHF流程](notes/llm/rlhf.md)
+2. [RLHF流程](../notes/llm/rlhf.md)
    policy: GPT; action_space: 全词表; observation_space: 全词表*seq_len; reward;
 
    step 1: query_tensor -> sft_model -> response_tensor
@@ -187,20 +187,24 @@ RLHF中PPO算比率相对什么来算？
 
 ## Prompt Engineering
 1. Prompt Creator (提示词生成器)
+   
    假设你是一个prompt export，我想让chatgpt用python代码实现一个计算器，请给我一个好的prompt。
 
 2. Structured Prompt：角色 + 任务 + 要求 + 提示
+
    角色：假设你是一个有着丰富经验的python程序员。
    任务：请用python代码绘制一个五角星。
    要求：请使用matplotlib这个库，线条使用红色。
    提示：五角星需要先计算五个顶点，然后在间隔一个顶点的两个顶点之间两两进行连线。
 
 3. One / Few Shot Prompt
+
    将英语翻译为汉语：
    big => 大
    small =>
 
 4. COT (Chain of Thought)
+
    one-shot cot:
    Q: Roger有5个网球。他又买了两罐网球，每个罐子有3个网球。他现在有多少个网球?
    A: Roger一开始有5个球。2罐3个网球，每罐等于6个网球。5 + 6 = 11。答案是11。
@@ -208,15 +212,18 @@ RLHF中PPO算比率相对什么来算？
    
    zero-shot cot:
    餐厅有23个苹果。如果他们使用了20个苹果做午餐，又买了6个，他们还有多少个苹果?
+
    让我们一步步思考 / 让我们逐步解决这个问题，以确保我们得到正确的答案(优先)。
    (Let's think step by step / Let's work this out in a step by step way to be sure we have the right answer.)
 
 5. ReACT (Reason+Act 协同思考和动作) 
+
    一种reinforce language agents，按照 think -> act -> observation -> think... 的模式来解决问题。其中，act就是和环境交互(如：查询互联网，调用工具，执行代码等)。
    
    prompt：尽你所能回答以下问题。您可以访问以下工具:\n\n{tools}\n\n使用以下格式:\n\nQuestion: 您必须回答的输入问题\nThought: 你应该经常思考要做什么\nAction: 要采取的行动，应该是 [{tool_names}] 中之一\nAction Input: 动作的输入\nObservation: 动作的结果\n... (其中 Thought/Action/Action Input/Observation 可以重复N次)\nThought: 我现在知道最后的答案了\nFinal Answer: 原始输入问题的最终答案\n\nBegin!\n\nQuestion: {input}\nThought:{agent_scratchpad}
 
 6. Reflexion (失败后自我反思) 
+
    一种reinforce language agents，按照 task -> trajectory -> evaluation -> Reflection(如果失败则反思) -> next trajectory... 的模式来解决问题。
 
 ## rag
@@ -271,7 +278,7 @@ chat = ChatOpenAI(
 res = chat(messages)
 ```
 
-## 问题1：[context length](notes/llm/position.md)
+## 问题1：[context length](../notes/llm/position.md)
 解决content length长度问题
 
 ## 问题二： 幻觉
@@ -295,7 +302,7 @@ res = chat(messages)
    5. 集成学习：将多个模型的预测结果进行集成，以提高预测的准确性和鲁棒性。
 
 ## 问题三：加速
-训练加速：[deepspeed](notes/llm/deepspeed.md)
+训练加速：[deepspeed](../notes/llm/deepspeed.md)
 推理加速：
    1. FlashAttention
    2. PagedAttention 
