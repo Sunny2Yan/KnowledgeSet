@@ -21,7 +21,7 @@ torch.load(file.pt, map_location=torch.device('cuda'/'cuda:0'/'cpu'))
 
 假设有 $N$ 张卡，每张卡都保存一个模型，每一次迭代（iteration/step）都将 batch 数据分割成 $N$ 个等大小的 micro-batch，每张卡根据拿到的 micro-batch 数据独立计算梯度，然后调用 All-Reduce 计算梯度均值，每张卡再独立进行参数更新。
 
-<img src="img/data_parallel.png" style="zoom:50%;" />
+<img src="../../imgs/data_parallel.png" style="zoom:50%;" />
 
 缺点： batch size 会随 worker 数量提高，难以在不影响收敛性的情况下无限增加 batch szie。
 
@@ -101,7 +101,7 @@ python -m torch.distributed.launch --nproc_per_node=n_gpus --nnodes=2(机器数)
 
 在多个 worker 之间划分模型的各个层
 
-<img src="img/model_parallel.png" style="zoom:50%;" />
+<img src="../../imgs/model_parallel.png" style="zoom:50%;" />
 
 ```python
 class Net(nn.Module):
@@ -120,7 +120,7 @@ class Net(nn.Module):
 
 将模型的各层划分为可以并行处理的阶段。当一个阶段完成一个 micro-batch 的正向传播时，激活内存将被发送给流水线的下一个阶段。
 
-<img src="img/pipeline_parallel.png" style="zoom:50%;" />
+<img src="../../imgs/pipeline_parallel.png" style="zoom:50%;" />
 
 ## 3. Hybrid Parallel
 
@@ -128,13 +128,13 @@ class Net(nn.Module):
 
 **数据并行+模型并行**（先进行数据并行，将数据集划分到不同的设备上，再进行pipeline 并行，将模型网络层划分为几个部分，放到不同的GPU上）
 
-<img src="img/2d_parallel.png" style="zoom:50%;" />
+<img src="../../imgs/2d_parallel.png" style="zoom:50%;" />
 
 ### 3.2 3D Parallel
 
 **数据并行+模型并行+流水线并行**
 
-<img src="img/3d_parallel.png" style="zoom:50%;" />
+<img src="../../imgs/3d_parallel.png" style="zoom:50%;" />
 
 ## 4. Deep Speed
 
@@ -147,8 +147,7 @@ GPT-2 含有1.5B 个参数，如果用 fp16 格式，只需要 3GB 显存（1.5B
 
 **Model States**：假设模型参数量为 $\Psi$，则参数(fp16)和梯度(fp16)都需要 $2\Psi$ bytes 的内存，优化器状态(参数、动量和方差的fp32)分别需求 $4\Psi、4\Psi、4\Psi$ bytes 的内存。即，共需要 $2\Phi+2\Phi+(4\Phi+4\Phi+4\Phi)$ bytes 内存。
 
-![](imgs/zero_dp.png)
-<img src="imgs/zero_dp.png" style="zoom:70%;" />
+<img src="../../imgs/zero_dp.png" style="zoom:70%;" />
 
 **ZeRO-DP 优化**：分片操作（partition），即每张卡只存 $\frac{1}{N}$ 的模型状态量，这样系统内只维护一份模型状态。
 
@@ -177,7 +176,7 @@ GPT-2 含有1.5B 个参数，如果用 fp16 格式，只需要 3GB 显存（1.5B
 
 - ZeRO-R 中分区激活检查点（Pa）引起的通信量增加通常不到基线 MP 的 10%。
 
-<img src="img/result.png" style="zoom:50%;" />
+<img src="../../imgs/result.png" style="zoom:50%;" />
 
 ### 4.2 ZeRO-Offload
 
@@ -185,7 +184,7 @@ ZeRO 是 data parallel 模式，在单机单卡下无法优化。在这种情况
 
 方法：在 ZeRO-2 的基础上将优化器状态和梯度 offload 到 CPU 内存。这个方法让 ZeRO-Offload 能最大程度降低拷贝至 CPU 导致的计算效率损失，同时达到和 ZeRO-2 相同，甚至有时超过的效率。
 
-<img src="img/offload.png" style="zoom:60%;" />
+<img src="../../imgs/offload.png" style="zoom:60%;" />
 
 圆形节点表示模型状态(parameter16, gradient16, parameter32, momentum32, variance32)；边表示节点之间的数据流；边的权重是在迭代期间流过它的总数据量(bytes)。对于参数量为 $M$ 的模型，fp16 模型状态为 2M，fp32 模型状态为4M；矩形为计算节点。
 
@@ -193,15 +192,15 @@ ZeRO 是 data parallel 模式，在单机单卡下无法优化。在这种情况
 
 即，在 GPU上面进行前向和后向计算，将梯度传给 CPU，进行参数更新，再将更新后的参数传给 GPU。为了提高效率，可以将计算和通信并行起来，GPU 在反向传播阶段，可以待梯度值填满 bucket 后，一边计算新的梯度一边将 bucket传输给 CPU，当反向传播结束，CPU基本上已经有最新的梯度值了，同样的，CPU 在参数更新时也同步将已经计算好的参数传给 GPU。
 
-<img src="img/offload_process_single.png" style="zoom:80%;" />
+<img src="../../imgs/offload_process_single.png" style="zoom:80%;" />
 
 对于多 GPU：
 
-<img src="img/offload_process_multi.png" style="zoom:70%;" />
+<img src="../../imgs/offload_process_multi.png" style="zoom:70%;" />
 
 **操作**：
 
-<img src="img/zero_offload_code.png" style="zoom:50%;" />
+<img src="../../imgs/zero_offload_code.png" style="zoom:50%;" />
 
 ### 4.3 ZeRO-Infinity
 

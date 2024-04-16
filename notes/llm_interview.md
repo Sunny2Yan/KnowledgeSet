@@ -146,8 +146,8 @@ CRF
    step 2: query_tensor + response_tensor -> reward_model(小) -> reward
    step 3: 
       ```
-      q_a -> reward_model(freeze)  -> score
-      q_a -> actor_model           -> log_probs -    |
+      q_a -> reward_model(freeze)  -> score                          -| 
+      q_a -> actor_model           -> log_probs -    |                +         -> PPO
                                                      |-> kl(log_probs || ref_log_probs)
       q_a -> ref_model(freeze)     -> ref_log_probs -|
       ```
@@ -157,7 +157,6 @@ CRF
 
 目标公式中衰减因子的作用，取大取小有什么影响？
 RLHF的目标公式可以加入什么其他的项？
-熵正则项是如何加入的？ 
 RLHF中PPO算比率相对什么来算？
 为啥RLHF中要用PPO？和其他RL算法的区别？
 
@@ -234,46 +233,46 @@ langchain中的模块:
    6. agents: llm agent, multi agent ...
 
 langchain实现rag:
-   ```python
-   # step 1: load pdf
-   from langchain.document_loaders import PyPDFLoader
-   loader = PyPDFLoader("https://arxiv.org/pdf/2309.10305.pdf")
-   pages = loader.load_and_split()
-   
-   # step 2: split text
-   from langchain.text_splitter import RecursiveCharacterTextSplitter
-   text_splitter = RecursiveCharacterTextSplitter(
-      chunk_size = 500,
-      chunk_overlap = 50,)
-   docs = text_splitter.split_documents(pages)
+```python
+# step 1: load pdf
+from langchain.document_loaders import PyPDFLoader
+loader = PyPDFLoader("https://arxiv.org/pdf/2309.10305.pdf")
+pages = loader.load_and_split()
 
-   # step 3: build vectorstore
-   from langchain.embeddings.openai import OpenAIEmbeddings
-   from langchain.vectorstores import FAISS  # local: faiss; online: pinecone
+# step 2: split text
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+text_splitter = RecursiveCharacterTextSplitter(
+   chunk_size = 500,
+   chunk_overlap = 50,)
+docs = text_splitter.split_documents(pages)
 
-   embed_model = OpenAIEmbeddings()
-   vectorstore = FAISS.from_documents(
-      documents=docs, embedding=embed_model , collection_name="openai_embed")
+# step 3: build vectorstore
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import FAISS  # local: faiss; online: pinecone
 
-   # step 4: retrieval 
-   query = "How large is the baichuan2 vocabulary?"
-   results = vectorstore.similarity_search(query, k=3)
+embed_model = OpenAIEmbeddings()
+vectorstore = FAISS.from_documents(
+   documents=docs, embedding=embed_model , collection_name="openai_embed")
 
-   # step 5: build prompt and model
-   from langchain.schema import SystemMessage, HumanMessage, AIMessage
-   from langchain.chat_models import ChatOpenAI
-   source_knowledge = "\n".join([x.page_content for x in results])
-   augmented_prompt = f"""Using the contexts below, answer the query.
-      contexts: {source_knowledge}
-      query: {query}"""
-   messages = [
-      SystemMessage(content="You are a helpful assistant."),
-      HumanMessage(content=augmented_prompt), ]
-   chat = ChatOpenAI(
-      openai_api_key="",
-      model='gpt-3.5-turbo')
-   res = chat(messages)
-   ```
+# step 4: retrieval 
+query = "How large is the baichuan2 vocabulary?"
+results = vectorstore.similarity_search(query, k=3)
+
+# step 5: build prompt and model
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from langchain.chat_models import ChatOpenAI
+source_knowledge = "\n".join([x.page_content for x in results])
+augmented_prompt = f"""Using the contexts below, answer the query.
+   contexts: {source_knowledge}
+   query: {query}"""
+messages = [
+   SystemMessage(content="You are a helpful assistant."),
+   HumanMessage(content=augmented_prompt), ]
+chat = ChatOpenAI(
+   openai_api_key="",
+   model='gpt-3.5-turbo')
+res = chat(messages)
+```
 
 ## 问题1：[context length](notes/llm/position.md)
 解决content length长度问题
@@ -283,7 +282,11 @@ langchain实现rag:
 
 原因：
    1. 数据质量：训练数据的质量不足，噪声较多，会导致出现幻觉；或是某一类数据大量重复导致模型产生偏好；
-   2. 解码过程中的随机性：top-k, top-p, temperature
+   2. 解码过程中的随机性：top-k(beam search), top-p(核采样), temperature(logits/T)；
+         核采样：由于top-k中的k不好确定，top-p只从累积概率达到p的最小单词集合中选择一个单词 
+         eg: 0.664, 0.199, 0.105...， p=0.9时只从前两个采样
+         temperature: 温度越小差异越大，温度越大差异越小
+         使用的先后顺序是 top-k -> top-p -> Temperature
    3. 最大似然性目标：大模型的训练目标是最大化下一个token的概率，因此，模型更看重看起来正确，而不是输出内容的正确性；
    4. 上下文理解：大模型需要理解上下文信息来生成准确的答案，如果上下文窗口长度不足或模型无法有效处理上下文信息，就会导致模型无法理解上下文含义，从而产生幻觉。
 
