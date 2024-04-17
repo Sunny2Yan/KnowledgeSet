@@ -10,8 +10,14 @@
    $L(y_{pre}, y_{ture}) = y_{true} \log{\frac{y_{ture}}{y_{pre}}} = y_{true}(\log{y_{true}} - \log{y_{pre}})$
 
 3. Precision, Recall
+   TP(True Positive), TN(True Negative), FP(False Positive), FN(False Negative)
+   Precision(准确率) = TP/(TP+FP)
+   Recall(召回率) = TP/(TP+FN)
+   F1-score = 2 * Precision * Recall / (Precision + Recall)
 
-大模型灾难遗忘怎么解决
+4. 大模型灾难遗忘问题
+   定义：大模型学习新知识的过程会迅速破坏之前获得的信息，而导致模型性能在旧任务中急剧下降。
+   
 如何避免模型过拟合
 
 ## 分词
