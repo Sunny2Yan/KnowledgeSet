@@ -3,7 +3,7 @@
 ## 基础
 1. cross entropy (用来度量两个概率分布间的差异)
    $H(p, q) = -\sum_{x} p(x) \log(q(x))$; 交叉熵刻画了两个概率分布之间的距离，值越小，两个概率分布越接近
-   对于二分类：$L=\frac{1}{N}\sum_{i}L_i =- \frac{1}{N} \sum_{i}[y_i \log(p_i)]$; y表示真实分布
+   对于二分类：$L=\frac{1}{N}\sum_{i}L_i =- \frac{1}{N} \sum_{i}[y_i \log(p_i) + (1-y_i)\log(1-p_i)]$; y表示真实分布
    对于多分类：$L=\frac{1}{N}\sum_{i}L_i =- \frac{1}{N} \sum_{i} \sum_{c=1}^{M}y_{ic}\log(p_{ic})$; $y_{ic}$取0或1，样本i的类别等于c取1
 
 2. kl divergence
@@ -28,7 +28,7 @@ tokenizer 的分词方法
    $att=softmax(\frac{qk^T}{\sqrt{d}}) v$
    初始的Attention很接近one hot分布，不除以根号d，会造成梯度消失
    multi_head：可以学习到不同的知识，增强表达能力
-2. transformer 结构、位置编码
+2. transformer (encoder-decoder)
    单向transformer模型:
    pre-training:
    fine-tuning:
@@ -83,7 +83,7 @@ tokenizer 的分词方法
    gpt2中引入了past_key_value, 防止模型在文本生成任务中重新计算上一次迭代计算好的上下文值；
    gpt3中引入了稀疏注意力机制和自适应注意力跨度来提高计算效率和长距离依赖的建模能力
 
-5. llama结构、rmsnorm、激活函数swiGLU、position embedding构造方法
+5. Llama (only-decoder)
    单向transformer模型：$P(w_i | w_{i-k}, \cdots, w_{i-1})$
    pre-training: 根据前面的token预测后一个token， temperature > 0时，softmax(logits/temperature)并采样top_p
    fine-tuning: sft, instruction-tuning

@@ -57,7 +57,7 @@ class FstDP(object):
         (leetcode 121; 剑指offer 63) 某天买入这支股票，在未来卖出，求获得利润最大（只买卖一次）。
         思路：f(n)=max(max_profit, price-min_price)
         """
-        min_price = float("inf")
+        min_price = prices[0]
         max_profit = 0
 
         for price in prices:
@@ -105,7 +105,7 @@ class FstDP(object):
 
 class SecDP(object):
     def __init__(self):
-        pass
+        ...
 
     @staticmethod
     def min_path_sum_1(grid: list[list[int]]) -> int:
@@ -234,7 +234,10 @@ class SecDP(object):
 
 
 if __name__ == '__main__':
+    fstdp = FstDP()
     secdp = SecDP()
+
+    print(fstdp.climb_stairs(10))
 
     print(secdp.knapsack_2(10, [1, 9], [3, 8]))
 
