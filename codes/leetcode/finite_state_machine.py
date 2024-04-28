@@ -14,9 +14,9 @@ class AutoMaton:
         """
         state, sign, res = 'start', 1, 0
         table = {
-            'start': ['start', 'signed', 'in_number', 'end'],
-            'signed': ['end', 'end', 'in_number', 'end'],
-            'in_number': ['end', 'end', 'in_number', 'end'],
+            'start': ['start', 'signed', 'number', 'end'],
+            'signed': ['end', 'end', 'number', 'end'],
+            'number': ['end', 'end', 'number', 'end'],
             'end': ['end', 'end', 'end', 'end'], }
 
         for c in s:
@@ -29,7 +29,7 @@ class AutoMaton:
             else:
                 state = table[state][3]
 
-            if state == 'in_number':
+            if state == 'number':
                 res = res * 10 + int(c)
                 res = min(res, self.INT_MAX) if sign == 1 else min(
                     res, -self.INT_MIN)
