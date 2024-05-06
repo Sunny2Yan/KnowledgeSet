@@ -313,3 +313,14 @@ res = chat(messages)
    1. FlashAttention
    2. PagedAttention 
    3. TGI (Text Generation Inference)
+
+## 问题四：国产大模型
+阿里：通义千问
+百度：文心一言
+腾讯：hunyuan
+科大讯飞：讯飞星火
+字节：云雀
+百川智能：baichuan
+智谱AI：GLM
+月之暗面：kimichat
+稀宇科技: minimax (moe)

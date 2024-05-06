@@ -17,6 +17,7 @@ This is a place to record scraps of notes from study and work.
 13. [dynamic programming](codes/leetcode/dynamic_programming.py)
 14. [greedy](codes/leetcode/greedy.py)
 15. [math](codes/leetcode/math.py)
+16. [finite state machine](codes/leetcode/finite_state_machine.py)
 
 # LLM
 1. [tokenizer](notes/llm/tokenizer.md) ([code](codes/llm/tokenizer.py))

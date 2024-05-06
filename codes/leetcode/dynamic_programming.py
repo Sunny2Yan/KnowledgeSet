@@ -9,7 +9,7 @@ class FstDP(object):
     def climb_stairs(n: int) -> int:
         """爬楼梯
         (leetcode 70) 每次可以爬1，2阶，有多少种爬法。
-        思路：f(n)=f(n-1) + f(n-2)。
+        思路：f(n)=f(n-1) + f(n-2), 递归 2^n。
         时O(n) 空O(1)
         """
         dp = [0, 0, 1]
@@ -134,25 +134,25 @@ class SecDP(object):
         """三角形最小路径和
         (leetcode 120) 给定三角形，找出自顶向下的最小路径和。
         思路:f(i, 0) = f(i-1, 0) + t(i, 0)  左边缘
-            f(i, i) = f(i-1, i) + t(i, i)  右边缘
+            f(i, i) = f(i-1, i-1) + t(i, i)  右边缘
             f(i, j) = min(f(i-1, j-1), f(i-1, j)) + t(i, j)
         时O(n^2); 空O(n)
         """
-        f = [[triangle[0][0]] * i for i in range(1, len(triangle) + 1)]
+        dp = [[triangle[0][0]] * i for i in range(1, len(triangle) + 1)]
         for i in range(1, len(triangle)):
-            f[i][0] = f[i - 1][0] + triangle[i][0]  # 左边缘
+            dp[i][0] = dp[i - 1][0] + triangle[i][0]  # 左边缘
             for j in range(1, i):
-                f[i][j] = min(f[i - 1][j - 1], f[i - 1][j]) + triangle[i][j]
-            f[i][i] = f[i - 1][i - 1] + triangle[i][i]  # 右边缘
+                dp[i][j] = min(dp[i - 1][j - 1], dp[i - 1][j]) + triangle[i][j]
+            dp[i][i] = dp[i - 1][i - 1] + triangle[i][i]  # 右边缘
 
-        return min(f[-1])
+        return min(dp[-1])
 
     @staticmethod
     def knapsack_1(C: int, V: list[int], W: list[int]) -> int:
         """01背包问题
         () 已知背包的体积C，物品的体积V=[v_i]和价值W=[w_i]，求背包最大能装多大价值的物品
         思路：定义i表示第i件物品，j为背包的剩余空间，则剩余空间大于第i个物品体积时选择拿取有：
-            dp[i][j] = max(dp[i-1][j], dp[i-1][j-V[i]] + W[i]；
+            dp[i][j] = max(dp[i-1][j], dp[i-1][j-V[i]) + W[i]；
             当剩余空间小于第i个物品体积时，只能不拿：dp[i][j] = dp[i-1][j]
         时O(mn); 空O(mn)
         """
