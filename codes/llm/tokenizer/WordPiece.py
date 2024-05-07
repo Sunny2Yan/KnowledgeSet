@@ -139,5 +139,3 @@ if __name__ == '__main__':
     ]
     word_piece = WordPiece(corpus, 70)
     print(word_piece)
-
-import transformers.models

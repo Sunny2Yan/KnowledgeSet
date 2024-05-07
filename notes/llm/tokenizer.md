@@ -62,8 +62,9 @@ $$
 ### 1.4 SentencePiece (T5, llama)
 上述三种方法都有一个前提：输入以空格来区分，但很多语言的词语无法使用空格进行区分（eg:中文），
 把一个句子看作一个整体，再拆成片段（空格space也当作一种特殊字符来处理），再用BPE或者Unigram算法来构造词汇表。
+即，SentencePiece是一种分割子词的方法，它可以选择 BPE 或其他分词算法作为 SentencePiece 的模型来合并子词
 
-eg: "I have a new GPU!" ==> ['_I', '_have', '_a', '_new', '_G', 'PU', '!'] 
+eg: "apple banana barn" ==> ['a', 'p', 'p_l', 'e', 'b', 'a_n', 'a_n_a', '_', 'b_a', 'r', 'n']
 
 ## 2. comparison
 

@@ -170,8 +170,8 @@ class SecDP(object):
     def knapsack_2(C: int, V: list[int], W: list[int]) -> int:
         """完全背包问题
         () 已知背包的体积C，物品的体积V=[v_i]和价值W=[w_i]，每种物品任意多个，求背包最大能装多大价值的物品.
-        思路：剩余空间小于第i个物品体积时，只能不拿：dp[i][j] = dp[i-1][j];
-            剩余空间大于等于第i个物品时：dp[i][j] = max(dp[i-1][j], dp[i][j-V[i]] + W[i])
+        思路：剩余空间小于第i-1个物品体积时，只能不拿：dp[i][j] = dp[i-1][j];
+            剩余空间大于等于第i-1个物品时：dp[i][j] = max(dp[i-1][j], dp[i][j-V[i]] + W[i])
         时O(mn); 空O(mn)
         """
         dp = [[0 for _ in range(C+1)] for _ in range(len(V)+1)]
