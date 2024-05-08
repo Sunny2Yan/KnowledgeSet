@@ -29,6 +29,9 @@ tokenizer 的分词方法
    $att=softmax(\frac{qk^T}{\sqrt{d}}) v$
    初始的Attention很接近one hot分布，不除以根号d，会造成梯度消失
    multi_head_att：可以学习到不同的知识，增强表达能力
+   
+   设序列长度为 l，注意力的计算复杂度为 O(l^2); 为了降低复杂度可以使用稀疏注意力机制，复杂度为 O(wL)
+   稀疏注意力机制：在计算注意力时，使用滑动窗口注意力机制（Sliding Window Attention, SWA）,窗口为 w。
 
    ```python
    batch_size, seq_len, d_model = 1, 512, 768
@@ -62,7 +65,7 @@ tokenizer 的分词方法
    qkw_3 = nn.Linear(d_model, d_model + 2*group_head*d_head)
    q_3, k_3, v_3 = qkv(x).split([d_model, group_head*d_head, group_head*d_head], dim=2)
    ```
-2. transformer (encoder-decoder)
+3. transformer (encoder-decoder)
    Loss: CrossEntropyLoss 交叉熵损失
 
    结构：(n_layers=6, att_head=8, hidden=512, mlp_hidden=4*hidden, seq_len=256)
@@ -76,7 +79,7 @@ tokenizer 的分词方法
    6 * DecoderBlock (=> norm(x + dropout(multi_head_att(x))) -> norm(x + dropout(cross_att(x, en_out, en_out))) -> norm(x + dropout(mlp(x))))  后norm -> linear
    multi_head_att: x -> q, k, v -> att -> linear
    cross_multi_head_att: x -> q, en_out = k, en_out = v -> att -> linear
-3. Bert (only-encoder)
+4. Bert (only-encoder)
    双向transformer模型：$P(w_i | w_1, \cdots, w_{i-1}, w_{i+1}, \cdots, w_n)$
    pre-training: (task_1: mask_lm(随机mask 15%并预测，vocab类)；
    task_2: next_sentence_predict(输入AB两个句子，判断B是不是A的下一句))
@@ -92,7 +95,7 @@ tokenizer 的分词方法
 
    12 * EncoderBlock (=> x + multi_head_att(norm(x)) -> x + mlp(norm(x)) -> dropout)  先norm
    multi_head_att: x -> q, k, v -> att -> linear
-4. GPT (only-decoder)
+5. GPT (only-decoder)
    单向transformer模型：$P(w_i | w_{i-k}, \cdots, w_{i-1})$
    pre-training: 根据第一个token预测后面的token; LMHead: linear(vocab)
    fine-tuning: n分类问题; ClsHead: linear(vocab) -> linear(n)
@@ -111,7 +114,7 @@ tokenizer 的分词方法
 
    gpt2中引入了past_key_value, 防止模型在文本生成任务中重新计算上一次迭代计算好的上下文值；
    gpt3中引入了稀疏注意力机制和自适应注意力跨度来提高计算效率和长距离依赖的建模能力
-5. Llama (only-decoder)
+6. Llama (only-decoder)
    单向transformer模型：$P(w_i | w_{i-k}, \cdots, w_{i-1})$
    pre-training: 根据前面的token预测后一个token， temperature > 0时，softmax(logits/temperature)并采样top_p
    fine-tuning: sft, instruction-tuning
@@ -122,7 +125,7 @@ tokenizer 的分词方法
    position: RoPE [旋转位置编码](../notes/llm/position.md)
    embedding: token_embed + position_embed
    activation: $SiLU(x) = x * sigmoid(x)$
-   normalization: RMSNorm ($W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$)
+   normalization: (Root Mean Square) RMSNorm ($W * \frac{x}{\sqrt{\frac{1}{n} \sum_i^n{x_i^2} + \epsilon}}$)
 
    32 * DecoderBlock (=> x + multi_head_att(norm(x)) -> x + mlp(norm(x)))  先norm
    mask_multi_head_att: x -> q, k, v -> rope(q, k) -> mask_att -> linear
@@ -345,8 +348,8 @@ res = chat(messages)
 训练加速：[deepspeed](../notes/llm/deepspeed.md)
 推理加速：
 
-1. FlashAttention
-2. PagedAttention
+1. FlashAttention：通过矩阵分块计算以及减少内存读写次数的方式，提高注意力分数的计算效率；
+2. PagedAttention：针对增量解码阶段，对于 KV 缓存进行分块存储，并优化了计算方式，增大了并行计算度，从而提高了计算效率；
 3. TGI (Text Generation Inference)
 
 ## 问题四：国产大模型
@@ -360,3 +363,11 @@ res = chat(messages)
 智谱AI：GLM
 月之暗面：kimichat
 稀宇科技: minimax (moe)
+幻方： deepseek
+
+## 问题五：测评
+MMLU：综合性的大规模评测数据集。(单选，四选一，[问题：xxx; 选项：xxx；答案：A])；
+BIG-Bench：综合评测体系。(QA，单选)；
+HELM：一个全面而系统 的评估体系。（QA，单选）
+C-Eval：一个专门为中文大语言模型设计的综合评测体系。(单选)
+CMMLU、AGIEval、MMCU、M3KE和Xiezhi等。 

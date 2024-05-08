@@ -23,6 +23,13 @@ $$
 其中，pos表示位置，i表示维度，$d_{model}$表示模型隐藏层的维度。
 通过使用不同频率的正弦和余弦函数，位置编码可以捕捉到不同位置之间的相对距离和顺序。
 
+对于 self attention 中第 i 个单词和第 j 个单词的 attention score 为:
+$$
+A_{i,j}^{abs}=(E_{x_i}+P_i)W_q[(E_{x_j}+P_j)W_k]^T  \\
+=E_{x_i}W_qW_k^TE_{x_j}^T+E_{x_i}W_qW_k^TP_j^T+P_iW_qW_k^TE_{x_j}^T+P_iW_qW_k^TP_j^T
+$$
+其中，第一项与位置编码无关，中间两项都只有一个位置的向量，所以也不包含相对位置信息，只有最后一项最有可能包含相对位置信息。
+
 ## 2. 相对位置编码
 
 相对位置编码是为序列数据中的每个位置添加相对位置信息，为了让模型能够更好地理解序列中不同位置之间的相对关系和顺序。
@@ -188,7 +195,9 @@ $$
 综上所述，ALiBi通过改进自注意力机制，提供了一种灵活的方式来调整注意力权重的分布，减少参数数量，并具有一定的通用性。这些优点使得ALiBi在处理长度外推问题时具有较好的性能和适应性。
 
 ## 3. 长度外推
+
 长度外推问题是指在短序列上训练的模型，能否不用微调地用到长序列上并依然保持不错的效果。其主要包含两个问题”
+
 1. 预测的时候用到了没训练过的位置编码；
 2. 预测的时候注意力机制所处理的token数量远超训练时的数量
 
@@ -202,19 +211,37 @@ $$
 4. scale attention: $att(Q,K,V)=softmax(\frac{\log_m^n}{\sqrt{d}}QK^T)V$，其中m是训练长度，n是预测长度
 
 ## 4. 长度扩展
+
 1. 直接外推
    模型对没被训练过的位置不具有适应能力，在推理阶段扩展长度，效果会不好。
 2. position interpolation (内插)
-   $$f'(x, m)=f(x, \frac{mL}{L'})$$
+
+   $$
+   f'(x, m)=f(x, \frac{mL}{L'})
+   $$
+
    即将新的长度按比例压缩到原来窗口内，压缩后更加“拥挤”，通常需要微调。
 3. NTK (高频外推、低频内插)
    位置n的旋转位置编码本质上是$\beta$进制编码，即，RoPE的构造基础就是Sinusoidal位置编码：
-   $$[cos(\frac{0}{\beta^0}), sin(\frac{1}{\beta^0}), cos(\frac{2}{\beta^1}), sin(\frac{3}{\beta^1}), \cdots, cos(\frac{n-1}{\beta^{d/2-1}}), sin(\frac{n}{\beta^{d/2-1}})], \beta=10000^{2/d}$$
+
+   $$
+   [cos(\frac{0}{\beta^0}), sin(\frac{1}{\beta^0}), cos(\frac{2}{\beta^1}), sin(\frac{3}{\beta^1}), \cdots, cos(\frac{n-1}{\beta^{d/2-1}}), sin(\frac{n}{\beta^{d/2-1}})], \beta=10000^{2/d}
+   $$
+
    其中，最低频是 $\frac{n}{\beta^{d/2−1}}$ 项，引入参数 $\lambda$ 变为 $\frac{n}{(\beta\lambda)^{d/2−1}}$ ，使其与内插一致，即：
-   $$\frac{n}{(\beta\lambda)^{d/2−1}} = \frac{n/k}{\beta^{d/2−1}}$$
+   $$
+   \frac{n}{(\beta\lambda)^{d/2−1}} = \frac{n/k}{\beta^{d/2−1}}
+   $$
+
    解得 $\lambda=k^{2/(d−2)}$，code直接修改base `base = base * 8 ** (dim / (dim-2))`
 4. rerope
-   按照高频外推、低频内插的思想，设定一个窗口大小w，在窗口内使用大小为1的位置间隔，在窗口外使用大小为1/k的位置间隔，即: 
-   $$[0, 1, \cdots, w, w+\frac{1}{k}, w+\frac{2}{k}, \cdots, w+\frac{L-1-w}{k}]$$
+   按照高频外推、低频内插的思想，设定一个窗口大小w，在窗口内使用大小为1的位置间隔，在窗口外使用大小为1/k的位置间隔，即:
+
+   $$
+   [0, 1, \cdots, w, w+\frac{1}{k}, w+\frac{2}{k}, \cdots, w+\frac{L-1-w}{k}]
+   $$
+
    其中，需要w小于训练长度。当 $k\rightarrow \infty$ 时，有：
-   $$[0, 1, \cdots, w, w, w, \cdots, w]$$
+   $$
+   [0, 1, \cdots, w, w, w, \cdots, w]
+   $$

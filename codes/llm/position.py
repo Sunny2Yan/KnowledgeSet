@@ -177,87 +177,35 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
 
 
 # baichuan
-def _get_interleave(n):
-    def _get_interleave_power_of_2(n):
-        start = 2 ** (-(2 ** -(math.log2(n) - 3)))
-        ratio = start
-        return [start * ratio**i for i in range(n)]
+def build_alibi_tensor(attention_mask: torch.Tensor,
+                       num_heads: int, dtype: torch.dtype) -> torch.Tensor:
+    batch_size, seq_length = attention_mask.shape
+    closest_power_of_2 = 2 ** math.floor(math.log2(num_heads))
+    base = torch.tensor(2 ** (-(2 ** -(math.log2(closest_power_of_2) - 3))),
+                        device=attention_mask.device, dtype=torch.float32)
+    powers = torch.arange(1, 1 + closest_power_of_2,
+                          device=attention_mask.device, dtype=torch.int32)
+    slopes = torch.pow(base, powers)
 
-    if math.log2(n).is_integer():
-        return _get_interleave_power_of_2(n)
-    else:
-        closest_power_of_2 = 2 ** math.floor(math.log2(n))
-        return (
-            _get_interleave_power_of_2(closest_power_of_2)
-            + _get_interleave(2 * closest_power_of_2)[0::2][: n - closest_power_of_2]
-        )
+    # 计算各个头的惩罚系数
+    if closest_power_of_2 != num_heads:
+        # 如果头数不是 2 的幂次方，修改惩罚系数
+        extra_base = torch.tensor(
+            2 ** (-(2 ** -(math.log2(2 * closest_power_of_2) - 3))),
+            device=attention_mask.device, dtype=torch.float32)
+        num_remaining_heads = min(
+            closest_power_of_2, num_heads - closest_power_of_2)
+        extra_powers = torch.arange(
+            1, 1 + 2 * num_remaining_heads, 2,
+            device=attention_mask.device, dtype=torch.int32)
+        slopes = torch.cat([slopes, torch.pow(extra_base, extra_powers)], dim=0)
 
-def _fill_with_neg_inf(t):
-    """FP16-compatible function that fills a tensor with -inf."""
-    return t.float().fill_(float("-inf")).type_as(t)
-
-def _buffered_future_mask(tensor, maxpos, alibi, attn_heads):
-    _future_mask = torch.triu(_fill_with_neg_inf(torch.zeros([maxpos, maxpos])), 1)
-    _future_mask = _future_mask.unsqueeze(0) + alibi
-    new_future_mask = _future_mask.to(tensor)
-    return new_future_mask[: tensor.shape[0] * attn_heads, :maxpos, :maxpos]
-
-def _gen_alibi_mask(tensor, n_head, max_pos):
-    slopes = torch.Tensor(_get_interleave(n_head))
-    position_point = torch.arange(max_pos) - max_pos + 1
-    position_point = position_point.unsqueeze(0).unsqueeze(0).expand(n_head, -1, -1)
-    diag = torch.diag(position_point[0])
-    position_point = position_point - diag.unsqueeze(0).unsqueeze(0).transpose(-1, -2)
-    alibi = slopes.unsqueeze(1).unsqueeze(1) * position_point
-    alibi = alibi.view(n_head, 1, max_pos)
-    alibi_mask = torch.triu(_fill_with_neg_inf(torch.zeros([max_pos, max_pos])), 1)
-    alibi_mask = alibi_mask.unsqueeze(0) + alibi
-    return alibi_mask
-
-def get_alibi_mask(self, tensor, seq_length_with_past):
-    if self.training:
-        slopes = torch.Tensor(_get_interleave(self.n_head))
-        position_point = (
-                torch.arange(
-                    seq_length_with_past) - seq_length_with_past + 1
-        )
-        position_point = (
-            position_point.unsqueeze(0)
-            .unsqueeze(0)
-            .expand(self.n_head, seq_length_with_past, -1)
-        )
-        diag = torch.diag(position_point[0])
-        position_point = position_point - diag.unsqueeze(0).unsqueeze(
-            0).transpose(
-            -1, -2
-        )
-        alibi = slopes.unsqueeze(1).unsqueeze(1) * position_point
-        mask = _buffered_future_mask(
-            tensor, seq_length_with_past, alibi, self.n_head
-        )
-    else:
-        if self.first_run:
-            self.first_run = False
-            self.register_buffer(
-                "future_mask",
-                _gen_alibi_mask(tensor, self.n_head, self.max_cache_pos).to(
-                    tensor
-                ),
-                persistent=False,
-            )
-        if seq_length_with_past > self.max_cache_pos:
-            self.max_cache_pos = seq_length_with_past
-            self.register_buffer(
-                "future_mask",
-                _gen_alibi_mask(tensor, self.n_head, self.max_cache_pos).to(
-                    tensor
-                ),
-                persistent=False,
-            )
-        mask = self.future_mask[
-               : self.n_head, :seq_length_with_past, :seq_length_with_past
-               ]
-    return mask
+    arange_tensor = ((attention_mask.cumsum(dim=-1) - 1) *
+                     attention_mask)[:, None, :]
+    # 计算相对距离
+    alibi = slopes[..., None] * arange_tensor
+    # 计算 ALiBi 施加的注意力偏置
+    return alibi.reshape(batch_size * num_heads, 1, seq_length).to(dtype)
 
 
 if __name__ == '__main__':

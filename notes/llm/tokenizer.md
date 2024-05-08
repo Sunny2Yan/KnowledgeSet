@@ -29,20 +29,11 @@ for example:
 
 ### 1.2 WordPiece(Bert)
 
-WordPiece本质是同BPE，但在每次merge时，BPE选择频数最高的相邻子词合并，而WordPiece是选择能够最大化训练数据似然的合并。
-设句子 $S=(t_1, t_2, \cdots, t_n)$ 由 $n$ 个子词组成，其中 $t_i$ 表示子词，且假设各个子词之间是独立存在的，则句子S的语言模型似然值等价于所有子词概率的乘积：
+WordPiece本质是同BPE，但在每次merge时，BPE选择频数最高的相邻子词合并，而WordPiece是计算词对出现的得分，将得分最大的词对进行合并。
 
-$$
-\log P(S)=\sum_{i=1}^{n} \log P(t_i)
-$$
+$$score=\frac{词对出现的频率}{第一个词出现的频率 \times 第二个词出现的频率}$$
 
-假设把相邻位置的x和y两个子词进行合并，合并后产生的子词记为z，此时句子似然值的变化可表示为：
-
-$$
-\log P(t_z)-[\log P(t_x) + \log P(t_y)]=\log[\frac{P(t_z)}{P(t_x)P(t_y)}]
-$$
-
-### 1.3 ULM--Unigram Language Model()
+### 1.3 ULM--Unigram Language Model(T5)
 
 先初始化一个大词表，根据评估准则不断丢弃词表，直到满足限定条件.
 对于句子S，$x=(x_1, x_2, \cdots, x_n)$ 为句子的一个分词结果，由 $n$ 个子词组成。则当前分词下句子 $S$ 的似然值可以表示为：
@@ -60,9 +51,10 @@ $$
 ...
 
 ### 1.4 SentencePiece (T5, llama)
+SentencePiece是一种分割子词的方法，它可以选择 BPE 或其他分词算法作为 SentencePiece 的模型来合并子词。
+
 上述三种方法都有一个前提：输入以空格来区分，但很多语言的词语无法使用空格进行区分（eg:中文），
 把一个句子看作一个整体，再拆成片段（空格space也当作一种特殊字符来处理），再用BPE或者Unigram算法来构造词汇表。
-即，SentencePiece是一种分割子词的方法，它可以选择 BPE 或其他分词算法作为 SentencePiece 的模型来合并子词
 
 eg: "apple banana barn" ==> ['a', 'p', 'p_l', 'e', 'b', 'a_n', 'a_n_a', '_', 'b_a', 'r', 'n']
 

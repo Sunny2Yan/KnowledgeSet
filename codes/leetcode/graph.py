@@ -152,4 +152,18 @@ class Graph(object):
     def __init__(self):
         ...
 
-from peft import PromptTuningConfig, get_peft_model, TaskType, PromptTuningInit
+
+if __name__ == '__main__':
+    grid = [[0, 0, 1, 1, 0, 1, 0, 0, 1, 0],
+            [1, 1, 0, 1, 1, 0, 1, 1, 1, 0],
+            [1, 0, 1, 1, 1, 0, 0, 1, 1, 0],
+            [0, 1, 1, 0, 0, 0, 0, 1, 0, 1],
+            [0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+            [0, 1, 0, 1, 0, 1, 0, 1, 1, 1],
+            [1, 0, 1, 0, 1, 1, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+            [1, 1, 1, 0, 0, 1, 0, 1, 0, 1],
+            [1, 1, 1, 0, 1, 1, 0, 1, 1, 0]]
+
+    graph_dfs = GraphDFS()
+    print(graph_dfs.closed_island(grid))
