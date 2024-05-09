@@ -6,7 +6,7 @@ class Recursion(object):
     def permute_1(nums: list[int]) -> list[list[int]]:
         """全排列（没有重复元素）
         (leetcode 46，剑指offer 83) 给一个不含重复数字的数组，返回其所有可能的全排列。
-        思路： 定义递归函数，在递归函数中first指向起始位置，递归时，如若first等于列表长度，
+        思路： 定义递归函数，用first表示已经填了的位置，在递归函数中first指向起始位置，递归时，如若first等于列表长度，
         则已经结束，否则first的值与i值交换；然后再递归first+1，注意递归完成后需要回溯，变成原始字符。
         时O(n*n!); 空O(n)
         """
@@ -17,7 +17,7 @@ class Recursion(object):
                 res.append(nums[:])
             else:
                 for i in range(first, len(nums)):
-                    nums[first], nums[i] = nums[i], nums[first]
+                    nums[first], nums[i] = nums[i], nums[first]  # 动态维护数组
                     recursion_fn(first + 1)
                     nums[first], nums[i] = nums[i], nums[first]
 

@@ -266,7 +266,11 @@ RLHF中PPO算比率相对什么来算？
 langchain中的模块:
 chains, prompts, models, indexes, memory, agents
 
-1. chains: 链式pipeline
+1. chains: 链式pipeline和文档链，文档链如下：
+   stuff: 将所有文档组成一个文档列表，全部放到context中（适用于小文档）；
+   refine: 循环遍历每一个文档，每次输入中间答案（上一个文档的答案）和一个文档作为context（适用于大文档）；
+   map reduce: 循环遍历每一个文档得到输出结果，将所有结果组合成新文档作为输入；
+   map re-rank: 循环遍历每一个文档得到输出结果，并给出每个答案的确定性得分，返回得分最高的一个。
 2. prompts: prompt templates
 3. models: llms, chats, text_embedding
 4. indexes: document_loaders, text_splitters, vectorstore, retrievers

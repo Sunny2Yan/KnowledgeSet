@@ -14,22 +14,21 @@ class Math(object):
         思路：将x每次整除10，且记录余数。注意x的符号
         时O(logn); 空O(1)
         """
-        flag = 2**31 - 1 if x > 0 else 2**31
+        flag = 1 if x >= 0 else -1
         res, y = 0, abs(x)
         while y > 0:
             res = res * 10 + y % 10
-            if res > flag:
+            if res * flag < -2**31 or res * flag > 2**31-1:
                 return 0
             y //= 10
 
-        return res if x > 0 else -res
+        return res * flag
 
     @staticmethod
     def greatest_common_divisor(x: int, y: int) -> int:
         """求最大公约数
         """
-        (x, y) = (y, x) if x > y else (x, y)  # 让x为最小的一个
-        for factor in range(x, 0, -1):
+        for factor in range(min(x, y), 0, -1):
             if x % factor == 0 and y % factor == 0:
                 return factor
 
@@ -58,7 +57,7 @@ class Math(object):
     @staticmethod
     def cube_root(n: int) -> int:
         """求立方根
-        思路：牛顿迭代法求解。f(x_1) = f(x_0) + f'(x_0)(x_1 - x_0)
+        思路：牛顿迭代法求解。f(x)=x^3，由f(x_1) = f(x_0) + f'(x_0)(x_1 - x_0)可求 x_1
         """
         res, e = n, 0.01
         while abs(res**3 - n) > e:

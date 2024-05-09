@@ -18,7 +18,7 @@ class BitOperation(object):
     @staticmethod
     def hamming_weight(n: int) -> int:
         """二进制中 1 的个数
-        (剑指offer 15)
+        (leetcode 191, 剑指offer 15)
         思路：n&(n-1)可以把n的二进制位中的最低位的1变为0，如：6=(110), 4=(100), 6&(6−1)=4，
             因此可以将n一直运算到0即可。
         时O(logn), 空O(1) **
