@@ -6,8 +6,9 @@ class Recursion(object):
     def permute_1(nums: list[int]) -> list[list[int]]:
         """全排列（没有重复元素）
         (leetcode 46，剑指offer 83) 给一个不含重复数字的数组，返回其所有可能的全排列。
-        思路： 定义递归函数，用first表示已经填了的位置，在递归函数中first指向起始位置，递归时，如若first等于列表长度，
-        则已经结束，否则first的值与i值交换；然后再递归first+1，注意递归完成后需要回溯，变成原始字符。
+        思路： 将数组分成已知部分（首元素）和未知部分（其他元素），通过将首元素和其他元素交换，
+        就可以得到已知部分的全排列（如: 123, 213, 321）；然后递归首元素即可（注意需要进行回溯，
+        元素交换后需要恢复）。
         时O(n*n!); 空O(n)
         """
         res = []
@@ -73,15 +74,18 @@ class Recursion(object):
         思路：整体同上，但由于同一个数字可以被多次使用，所以递归时，每次要从起点开始。
         时O(n * 2^n); 空O(n)
         """
+        candidates.sort()  # 为了剪枝，需要排序
         res, temp = [], []
 
         def recursive(first=0, remain=target):
-            if target == 0:
+            if remain == 0:
                 res.append(temp[:])
-            elif target < 0:
+            elif remain < 0:
                 return None
             else:
                 for i in range(first, len(candidates)):
+                    if candidates[i] > remain:
+                        break
                     temp.append(candidates[i])
                     recursive(i, remain-candidates[i])  # 可以重复使用
                     temp.pop()
@@ -100,13 +104,13 @@ class Recursion(object):
         candidates.sort()
 
         def recursive(first=0, remain=target):
-            if target == 0 and temp[:] not in res:
+            if remain == 0 and temp[:] not in res:
                 res.append(temp[:])
-            elif target < 0:
+            elif remain < 0:
                 return None
             else:
                 for i in range(first, len(candidates)):
-                    if candidates[i] > target:  # 剪枝，减小复杂度
+                    if candidates[i] > remain:  # 剪枝，减小复杂度
                         break
                     if i > first and candidates[i-1] == candidates[i]:  # 过滤重复元素
                         continue

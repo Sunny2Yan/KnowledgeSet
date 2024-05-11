@@ -409,3 +409,9 @@ if __name__ == '__main__':
     model = LlamaModel(config)
     y = model.forward(x).shape
     print(y)
+
+    import openai
+    openai.Embedding.create(
+        input="Your text string goes here",
+        model="text-embedding-ada-002"
+    )

@@ -131,6 +131,10 @@ tokenizer 的分词方法
    mask_multi_head_att: x -> q, k, v -> rope(q, k) -> mask_att -> linear
    mask_att: att_score = mask(att_score)
 
+embedding-model:
+bce-embedding (开源)
+text-davinci (openai)
+
 ## peft
 
 1. prompt tuning (sft)
@@ -274,6 +278,11 @@ chains, prompts, models, indexes, memory, agents
 2. prompts: prompt templates
 3. models: llms, chats, text_embedding
 4. indexes: document_loaders, text_splitters, vectorstore, retrievers
+   multi query retriever: 根据query生成多个问题，并根据这些问题检索相关文档；
+   contextual compression: 压缩单个文档，避免返回不必要的内容；
+   ensemble retriever: 使用多个retriever，根据算法对结果进行排序，返回更好的结果；
+   multi vector retriever: 在大段文档中分割小段文档，检索小段文档并定位到大段文档；
+   parent document retriever: 检索时，先获取小块文档，并根据它查找父文档 ID，并返回那些较大的文档；
 5. memory: 内存管理，MessageHistory， buffer, KGMemory(知识图谱)...
 6. agents: llm agent, multi agent ...
 
@@ -337,7 +346,8 @@ res = chat(messages)
    temperature: 温度越小差异越大，温度越大差异越小
    使用的先后顺序是 top-k -> top-p -> Temperature
 3. 最大似然性目标：大模型的训练目标是最大化下一个token的概率，因此，模型更看重看起来正确，而不是输出内容的正确性；
-4. 上下文理解：大模型需要理解上下文信息来生成准确的答案，如果上下文窗口长度不足或模型无法有效处理上下文信息，就会导致模型无法理解上下文含义，从而产生幻觉。
+4. 训练数据中本身不包含问题相关内容（in-context learning 解决）；
+5. 上下文理解：大模型需要理解上下文信息来生成准确的答案，如果上下文窗口长度不足或模型无法有效处理上下文信息，就会导致模型无法理解上下文含义，从而产生幻觉。
 
 解决方法：
 
