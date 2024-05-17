@@ -286,6 +286,9 @@ chains, prompts, models, indexes, memory, agents
 5. memory: 内存管理，MessageHistory， buffer, KGMemory(知识图谱)...
 6. agents: llm agent, multi agent ...
 
+rag采用Top-k进行召回，这样存在检索出来的chunks不一定完全和上下文相关，最后导致大模型输出结果不佳。
+rerank: 将原有的Top-k召回，扩大召回数量，在引入粗排模型（policy，小模型，LLM），对召回结果结合上下文进行重排，来改进rag效果。
+
 langchain实现rag:
 
 ```python
