@@ -131,9 +131,27 @@ tokenizer 的分词方法
    mask_multi_head_att: x -> q, k, v -> rope(q, k) -> mask_att -> linear
    mask_att: att_score = mask(att_score)
 
-embedding-model:
+### embedding-model:
 bce-embedding (开源)
 text-davinci (openai)
+
+### 模型参数计算
+vocab_size=V; hidden_size=H; intermediate_size=H'; layers=L
+
+Embedding(VH) + L * [ATT(3HH + HH) + MLP(2HH' + H'H) + Norm(H + H)] + Output(HV)
+
+### 模型运算量计算 （浮点运算次数 FloatingPoint Operations, FLOP）
+model_parameter=P; batch_size=B; seq_len=S
+训练词元总数𝐶=𝐵S; num_header=𝑁，header_dim=𝐷，中间状态维度𝐻=𝑁𝐷
+
+矩阵乘积运算：[m,n] * [n, p] = 2mnp
+multi_head_att: Q, K, V [B, S, H]; 多头计算时需要拆分: Q', K', V' [B, N, S, D]
+    $Q'K'^T = 2(BNSD * BNDS) =  2BNSDS = 2BS^2ND$
+    缩放: BNS^2; Softmax: 3BNS^2(指数，加和，归一化，都是元素级操作); V': 2BS^2ND
+一次m_att: (4BS^2ND + 4BNS^2) * L = 4BS^2N(D+1)L = 4CSL(H+D)
+前向+反向：3 * 4BS^2N(D+1) = 12BS^2N(D+1)  （transformer中反向传播计算量约为前向的两倍）
+
+线性变换：
 
 ## peft
 

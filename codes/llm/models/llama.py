@@ -405,13 +405,8 @@ class LlamaModel(nn.Module):
 
 if __name__ == '__main__':
     x = torch.randint(1, 500, (2, 50), dtype=torch.long)
+    print(x.shape)
     config = LlamaConfig()
     model = LlamaModel(config)
     y = model.forward(x).shape
     print(y)
-
-    import openai
-    openai.Embedding.create(
-        input="Your text string goes here",
-        model="text-embedding-ada-002"
-    )
