@@ -19,7 +19,7 @@ Embedding(VH) + L * [ATT(3HH + HH) + MLP(2HH' + H'H) + Norm(H + H)] + Output(HV)
 设模型参数为 P：
 显存大小 = 2P(模型) + 2P(梯度) + 4P(优化器：模型、动量、动量二阶矩) * 3 = 16P
 
-## 3. 模型运算量计算 （浮点运算次数 FloatingPoint Operations, FLOP）
+## 4. 模型运算量计算 （浮点运算次数 FloatingPoint Operations, FLOP）
 对于 transformer 模型：
 model_parameter=P; batch_size=B; seq_len=S
 训练词元总数𝐶=𝐵S; num_header=𝑁，header_dim=𝐷，中间状态维度𝐻=𝑁𝐷
@@ -28,7 +28,7 @@ model_parameter=P; batch_size=B; seq_len=S
 
 1. multi_head_att: 
    $Q, K, V \in \R^{B \times S \times H}$; 多头计算时需要拆分: $Q', K', V' \in \R^{B \times N \times S \times D}$
-    $Q'K'^T = 2(BNSD * BNDS) =  2BNSDS = 2BS^2ND$
+    Q'K'^T = 2(BNSD * BNDS) =  2BNSDS = 2BS^2ND
     缩放(元素级操作): BNS^2; Softmax: 3BNS^2(指数，加和，归一化，都是元素级操作); 乘V': 2BS^2ND
 
    一次multi_head_att: (4BS^2ND + 4BNS^2) * L = 4BS^2N(D+1)L = 4CSL(H+D)
@@ -42,10 +42,10 @@ model_parameter=P; batch_size=B; seq_len=S
 
 参数量为𝑃 的模型在 𝐶 个词元上进行预训练的总体运算量 $\approx 6CP$ 
 
-## 4. 模型训练时间
+## 5. 模型训练时间
 $$训练时间 = \frac{模型运算量}{GPU数量 * GPU每秒浮点运算数}$$
 
-## 5. 显卡利用率评估
+## 6. 显卡利用率评估
 1. flops比值法： 
    gpu利用率 = 实测的flops / 显卡理论上的峰值flops
 2. throughout估计法：
@@ -54,7 +54,7 @@ $$训练时间 = \frac{模型运算量}{GPU数量 * GPU每秒浮点运算数}$$
 3. torch profiler分析法：
    利用torch profiler记录各个函数的时间，将结果在tensorboard上展示，在gpu kenel视图下，可以看到tensor core的利用率
 
-## 5. 其他指令
+## 7. 其他指令
 ```bash
 iftop -i eth2 -n  -P  # 查看多机训练时的网速
 nvidia-smi topo -m  # 查看服务器上的多卡之间的NVLINK topo
