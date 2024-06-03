@@ -20,8 +20,12 @@ This is a place to record scraps of notes from study and work.
 16. [finite state machine](codes/leetcode/finite_state_machine.py)
 
 # LLM
-1. [tokenizer](notes/llm/tokenizer.md) ([code](codes/llm/tokenizer.py))
-2. [position](notes/llm/position.md) ([code](codes/llm/position.py))
-3. [activation](notes/llm/activation.md) ([code](codes/llm/activation.py))
-4. [peft](notes/llm/peft.md) ([code](codes/llm/peft))
-5. [rlhf](notes/llm/rlhf.md) ([code](codes/llm/rlhf))
+1. [distribution](notes/llm/distribution/README.md)
+2. [model architecture](notes/llm/model_architecture/README.md)
+3. [fine tuning](notes/llm/fine_tuning/README.md)
+
+4. [tokenizer](notes/llm/tokenizer.md) ([code](codes/llm/tokenizer.py))
+5. [position](notes/llm/position.md) ([code](codes/llm/position.py))
+6. [activation](notes/llm/activation.md) ([code](codes/llm/activation.py))
+7. [peft](notes/llm/peft.md) ([code](codes/llm/peft))
+8. [rlhf](notes/llm/rlhf.md) ([code](codes/llm/rlhf))

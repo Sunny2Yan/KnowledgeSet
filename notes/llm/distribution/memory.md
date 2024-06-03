@@ -60,6 +60,7 @@ iftop -i eth2 -n  -P  # 查看多机训练时的网速
 nvidia-smi topo -m  # 查看服务器上的多卡之间的NVLINK topo
 ds_report  # 查看对 deepspeed 的环境配置是否正确
 ```
+指定GPU运行：将 CUDA_VISIBLE_DEVICES=2,3 写入.bashrc中
 
 基于deepspeed训练，可以通过配置文件查看训练时的 flops
 ```
