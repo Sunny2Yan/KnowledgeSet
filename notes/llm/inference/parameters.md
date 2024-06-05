@@ -12,4 +12,8 @@
 2. top-p: 针对 nuclear sampling，每次选取累积概率达到 p 的 tokens，然后随机采样（弥补了top-k中的k不好取值问题）；
 3. temperature: 将输出logits 除以 T，即 $softmax(y_{i})=\frac{e^{y_{i}}}{\sum_{j=1}^{n} e^{y_{j}}} \rightarrow softmax(y_{i})=\frac{e^{\frac{y_{i}}{T}}}{\sum_{j=1}^{n} e^{\frac{y_{j}}{T}}}$；
    $T \rightarrow \infty$: 随机采样；$T \rightarrow 0$: top-1采样。
-4. repetition_penalty: 重复惩罚，
+4. repetition_penalty: 重复惩罚
+   目的：为了解决语言模型中重复生成的问题。
+   思想：记录之前已经生成过的Token，当预测下一个Token时，人为降低已经生成过的Token的分数，使其被采样到的概率降低
+   $p_i = \frac{\exp(x_i / (T\cdot I_{i\in g}))}{\sum_{j}\exp(x_j / (T\cdot I_{j\in g}))}; I_c=\theta \;\; if \; c\in g \; else \; 1; g表示已生成的token列表$
+   $\theta > 1$：抑制重复；$\theta < 1$：尽量重复
