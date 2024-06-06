@@ -26,6 +26,7 @@ This is a place to record scraps of notes from study and work.
 4. [inference](notes/llm/inference/README.md)
 5. [agent](notes/llm/agent/README.md)
 
+
 6. [tokenizer](notes/llm/tokenizer.md) ([code](codes/llm/tokenizer.py))
 7. [position](notes/llm/position.md) ([code](codes/llm/position.py))
 8. [activation](notes/llm/activation.md) ([code](codes/llm/activation.py))

@@ -17,3 +17,6 @@
    思想：记录之前已经生成过的Token，当预测下一个Token时，人为降低已经生成过的Token的分数，使其被采样到的概率降低
    $p_i = \frac{\exp(x_i / (T\cdot I_{i\in g}))}{\sum_{j}\exp(x_j / (T\cdot I_{j\in g}))}; I_c=\theta \;\; if \; c\in g \; else \; 1; g表示已生成的token列表$
    $\theta > 1$：抑制重复；$\theta < 1$：尽量重复
+
+联合采样：
+通常是将 top-k、top-p、Temperature 联合起来使用。使用的先后顺序是 top-k->top-p->Temperature

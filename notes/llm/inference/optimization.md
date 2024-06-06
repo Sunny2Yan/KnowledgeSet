@@ -30,23 +30,25 @@ $$
    思想：利用 KV Cache 以空间换时间
    操作：输入分别经过 W_q、W_k、W_v 的变换之后，都切成了 num_head 份，维度也从 d_model 降到了d_head，再分别对每个head进行attention计算并拼接
    ```python
-   qkw_1 = nn.Linear(d_model, 3*d_model)
-   q_1, k_1, v_1 = qkv(x).chunk(3, dim=2)
+   q_linear = nn.Linear(hidden_size, hidden_size)
+   k_linear = nn.Linear(hidden_size, hidden_size)
+   v_linear = nn.Linear(hidden_size, hidden_size)
    ```
 2. 多查询注意力(MQA, Multi Query Attention)
    思想：多个注意力头之间共享 K, V，来降低 K-V Cache，以减少空间消耗，但性能会有所降低
    操作：经过 W_q、W_k、W_v 的变换后只对 Q 进行切分，而 K、V直接在线性变换的时候把维度降到了d_head，然后这 n 个 Query 头分别和同一份 K、V 进行 attention 计算，之后把结果拼接起来。
    ```python
-   qkw_2 = nn.Linear(d_model, d_model + 2*d_head)  # d_model = num_head * d_head
-   q_2, k_2, v_2 = qkv(x).split([d_model, d_head, d_head], dim=2)
+   q_linear = nn.Linear(hidden_size, hidden_size)
+   k_linear = nn.Linear(hidden_size, head_dim)  # hidden_size = num_head * head_dim
+   v_linear = nn.Linear(hidden_size, head_dim)
    ```
 3. 分组注意力(GQA, Group Query Attention) 
    思想：对上述 MHA 与 MQA 取折中方案。如：llama2,3
    操作：经过 W_q、W_k、W_v 的变换后 Q 仍不变，而 K、V 在线性变换的时候把维度降到了 group*d_head，同一个 group 内的 Q 共享同一套 K、V，不同 group 的 Q 所用的 K、V 不同
    ```python
-   group_head = num_head / group
-   qkw_3 = nn.Linear(d_model, d_model + 2*group_head*d_head)
-   q_3, k_3, v_3 = qkv(x).split([d_model, group_head*d_head, group_head*d_head], dim=2)
+   q_linear = nn.Linear(hidden_size, hidden_size)
+   k_linear = nn.Linear(hidden_size, group_num * head_dim)
+   v_linear = nn.Linear(hidden_size, group_num * head_dim)
    ```
 
 ## Flash Attention
