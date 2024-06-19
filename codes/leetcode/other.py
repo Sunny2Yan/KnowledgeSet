@@ -39,3 +39,109 @@ class StringAlgorithm:
             return "Neither"
 
 # 最大无重复字串长度
+
+
+import torch
+import torch.nn as nn
+
+
+class Attention(nn.Module):
+    def __init__(self, hidden_size, num_heads, max_tokens):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.num_heads = num_heads
+        self.head_dim = self.hidden_size // self.num_heads
+        self.max_tokens = max_tokens
+
+        assert self.head_dim * self.num_heads == self.hidden_size
+
+        self.q_proj = nn.Linear(self.hidden_size,
+                                self.num_heads * self.head_dim, bias=False)
+        self.k_proj = nn.Linear(self.hidden_size,
+                                self.num_heads * self.head_dim, bias=False)
+        self.v_proj = nn.Linear(self.hidden_size,
+                                self.num_heads * self.head_dim, bias=False
+        self.o_proj = nn.Linear(self.num_heads * self.head_dim,
+                                self.hidden_size, bias=False)
+
+        self.rotary_emb = RotaryEmbedding(
+            self.head_dim, max_position_embeddings=self.max_position_embeddings
+
+    def forward(self, hidden_states: torch.Tensor,
+                attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        bsz, q_len, _ = hidden_states.size()
+
+        query_states = self.q_proj(hidden_states).view(
+            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        key_states = self.k_proj(hidden_states).view(
+            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        value_states = self.v_proj(hidden_states).view(
+            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+
+        kv_seq_len = key_states.shape[-2]
+
+        # [1, 1, seq_len, head_dim]
+        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
+        query_states, key_states = self.apply_rotary_pos_emb(
+            query_states, key_states, cos, sin, position_ids)
+        # [bsz, num_heads, seq_len, head_dim]
+
+        # 如果有过去存储的键值对，则进行拼接
+        if past_key_value is not None:
+            # reuse k, v, self_attention
+            key_states = torch.cat([past_key_value[0], key_states], dim=2)
+            value_states = torch.cat([past_key_value[1], value_states],
+                                     dim=2)
+
+        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)
+                                    ) / math.sqrt(self.head_dim)
+        assert attn_weights.size() == (
+        bsz, self.num_heads, q_len, kv_seq_len)
+
+        # 如果有注意力掩码，则进行掩码处理
+        if attention_mask is not None:
+            assert attention_mask.size() == (bsz, 1, q_len, kv_seq_len)
+            attn_weights = attn_weights + attention_mask
+            attn_weights = torch.max(attn_weights, torch.tensor(
+                torch.finfo(attn_weights.dtype).min))
+
+        # 计算注意力输出 (注意 fp32)
+        attn_weights = nn.functional.softmax(
+            attn_weights, dim=-1, dtype=torch.float32).to(
+            query_states.dtype)
+        attn_output = torch.matmul(attn_weights, value_states)
+
+        assert attn_output.size() == (
+        bsz, self.num_heads, q_len, self.head_dim)
+
+        attn_output = attn_output.transpose(1, 2)
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+
+        attn_output = self.o_proj(attn_output)
+
+        return attn_output
+
+    def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
+        """将张量重塑为 [batch_size, num_attention_heads, seq_len, head_dim]。
+        """
+        return tensor.view(bsz, seq_len, self.num_heads,
+                           self.head_dim).transpose(1, 2).contiguous()
+
+    @staticmethod
+    def rotate_half(x):
+        """将输入张量的一半隐藏维度进行旋转 (最后一个维度的左右调换).
+        """
+        x1 = x[..., : x.shape[-1] // 2]  # 最后一个维度的左半部分
+        x2 = x[..., x.shape[-1] // 2:]  # 最后一个维度的右半部分
+        return torch.cat((-x2, x1), dim=-1)
+
+    def apply_rotary_pos_emb(self, q, k, cos, sin, position_ids):
+        # sin和cos的前两个维度总是1, 可以进行压缩.
+        cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
+        sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
+
+        cos = cos[position_ids].unsqueeze(1)  # [bs, 1, seq_len, dim]
+        sin = sin[position_ids].unsqueeze(1)  # [bs, 1, seq_len, dim]
+        q_embed = (q * cos) + (self.rotate_half(q) * sin)
+        k_embed = (k * cos) + (self.rotate_half(k) * sin)
+        return q_embed, k_embed
