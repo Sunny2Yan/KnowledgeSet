@@ -43,6 +43,27 @@ class StringAlgorithm:
 
 import torch
 import torch.nn as nn
+from typing import Optional
+
+
+class RotaryEmbedding(nn.Module):
+    def __init__(self, dim, max_tokens=2048, base=10000, device=None):
+        super().__init__()
+        # 计算位置编码的频率并加入缓存 $1 / 10000^(2k / d)$
+        inv_freq = 1.0 / (base ** (torch.arange(
+            0, dim, 2).float().to(device) / dim))
+        t = torch.arange(
+            self.max_tokens,
+            device=inv_freq.device,
+            dtype=inv_freq.dtype)
+        freqs = torch.outer(t, inv_freq)  # 向量外积
+        emb = torch.cat((freqs, freqs), dim=-1)  # 矩阵横向拼接
+
+        emb_cos = emb.cos()[None, None, :, :]  # 扩充维度
+        emb_sin = emb.sin()[None, None, :, :]
+
+
+        return emb_cos[:, :, :seq_len, ...].to(dtype=x.dtype), emb_sin[:, :, :seq_len, ...].to(dtype=x.dtype),
 
 
 class Attention(nn.Module):
@@ -60,12 +81,12 @@ class Attention(nn.Module):
         self.k_proj = nn.Linear(self.hidden_size,
                                 self.num_heads * self.head_dim, bias=False)
         self.v_proj = nn.Linear(self.hidden_size,
-                                self.num_heads * self.head_dim, bias=False
+                                self.num_heads * self.head_dim, bias=False)
         self.o_proj = nn.Linear(self.num_heads * self.head_dim,
                                 self.hidden_size, bias=False)
 
-        self.rotary_emb = RotaryEmbedding(
-            self.head_dim, max_position_embeddings=self.max_position_embeddings
+        # self.rotary_emb = RotaryEmbedding(
+        #     self.head_dim, max_position_embeddings=self.max_position_embeddings)
 
     def forward(self, hidden_states: torch.Tensor,
                 attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
@@ -81,7 +102,9 @@ class Attention(nn.Module):
         kv_seq_len = key_states.shape[-2]
 
         # [1, 1, seq_len, head_dim]
-        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
+        cos, sin = self.rotary_emb(self.head_dim, self.max_tokens)
+        cos, sin = cos.to(dtype=value_states.dtype), sin.to(dtype=value_states.dtype)
+
         query_states, key_states = self.apply_rotary_pos_emb(
             query_states, key_states, cos, sin, position_ids)
         # [bsz, num_heads, seq_len, head_dim]
@@ -121,6 +144,21 @@ class Attention(nn.Module):
 
         return attn_output
 
+    def rotary_emb(self, dim, max_token, base=10000, device=None, seq_len: int = None):
+        inv_freq = 1.0 / (base ** (torch.arange(
+            0, dim, 2).float().to(device) / dim))
+        t = torch.arange(
+            max_tokens,
+            device=inv_freq.device,
+            dtype=inv_freq.dtype)
+        freqs = torch.outer(t, inv_freq)  # 向量外积
+        emb = torch.cat((freqs, freqs), dim=-1)  # 矩阵横向拼接
+
+        emb_cos = emb.cos()[None, None, :, :]  # 扩充维度
+        emb_sin = emb.sin()[None, None, :, :]
+
+        return emb_cos[:, :, :seq_len, ...], emb_sin[:, :, :seq_len, ...]
+
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         """将张量重塑为 [batch_size, num_attention_heads, seq_len, head_dim]。
         """
@@ -145,3 +183,21 @@ class Attention(nn.Module):
         q_embed = (q * cos) + (self.rotate_half(q) * sin)
         k_embed = (k * cos) + (self.rotate_half(k) * sin)
         return q_embed, k_embed
+
+
+if __name__ == '__main__':
+    dim = 12
+    base = 10000
+    device = None
+    max_tokens = 24
+    inv_freq = 1.0 / (base ** (torch.arange(
+        0, dim, 2).float().to(device) / dim))
+    t = torch.arange(
+        max_tokens,
+        device=inv_freq.device,
+        dtype=inv_freq.dtype)
+    freqs = torch.outer(t, inv_freq)  # 向量外积
+    emb = torch.cat((freqs, freqs), dim=-1)  # 矩阵横向拼接
+
+    x = emb.cos()[None, None, :, :]
+    t = emb.sin()[None, None, :, :]
