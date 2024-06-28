@@ -142,3 +142,23 @@ class DoublePointer:
                 right -= 1
 
         return res
+
+    @staticmethod
+    def length_of_longest_substring(s: str) -> int:
+        """无重复字符串的最长子串
+        (LCR 016) 给定一个字符串 s，找出其中不含有重复字符的最长连续子字符串的长度.
+        思路：双指针，判断 s[right]是否在s[left: right]中，在则更新res，不在则右移left
+        时O(n); 空O(1)
+        """
+        if not s:
+            return 0
+        res = 1
+        left, right = 0, 1
+        while right < len(s):
+            if s[right] not in s[left:right]:
+                res = max(res, right-left+1)
+            else:
+                while s[right] in s[left:right]:
+                    left += 1
+            right += 1
+        return res

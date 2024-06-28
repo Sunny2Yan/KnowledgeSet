@@ -13,7 +13,7 @@ class FstDP(object):
         时O(n) 空O(1)
         """
         dp = [0, 0, 1]
-        for i in range(n):
+        for _ in range(n):
             dp[0] = dp[1]
             dp[1] = dp[2]
             dp[2] = dp[0] + dp[1]
@@ -152,7 +152,7 @@ class SecDP(object):
         """01背包问题
         () 已知背包的体积C，物品的体积V=[v_i]和价值W=[w_i]，求背包最大能装多大价值的物品
         思路：定义i表示第i件物品，j为背包的剩余空间，则剩余空间大于第i个物品体积时选择拿取有：
-            dp[i][j] = max(dp[i-1][j], dp[i-1][j-V[i]) + W[i]；
+            dp[i][j] = max(dp[i-1][j], dp[i-1][j-V[i] + W[i])；
             当剩余空间小于第i个物品体积时，只能不拿：dp[i][j] = dp[i-1][j]
         时O(mn); 空O(mn)
         """

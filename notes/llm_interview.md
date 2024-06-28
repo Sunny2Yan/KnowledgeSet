@@ -30,6 +30,7 @@ tokenizer 的分词方法
    初始的Attention很接近one hot分布，不除以根号d，会造成梯度消失
    multi_head_att：可以学习到不同的知识，增强表达能力
    
+   时间复杂度（[seq_len, hidden_size] * [hidden_size, seq_len] = n^2d）-> O(n^3) -> 由于 d << n，则 O(n^2)。
    设序列长度为 l，注意力的计算复杂度为 O(l^2); 为了降低复杂度可以使用稀疏注意力机制，复杂度为 O(wL)
    稀疏注意力机制：在计算注意力时，使用滑动窗口注意力机制（Sliding Window Attention, SWA）,窗口为 w。
 
