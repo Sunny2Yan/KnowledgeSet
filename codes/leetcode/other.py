@@ -42,6 +42,7 @@ class StringAlgorithm:
 import math
 import torch
 import torch.nn as nn
+import numpy as np
 from typing import Optional
 
 
@@ -64,17 +65,18 @@ class Attention(nn.Module):
         self.o_proj = nn.Linear(self.num_heads * self.head_dim,
                                 self.hidden_size, bias=False)
 
-    def forward(self, hidden_states: torch.Tensor,
+    def forward(self,
+                hidden_states: torch.Tensor,
                 attention_mask: Optional[torch.Tensor] = None,
                 position_ids: Optional[torch.LongTensor] = None) -> torch.Tensor:
-        bsz, q_len, _ = hidden_states.size()
+        bsz, seq_len, _ = hidden_states.size()
 
         query_states = self.q_proj(hidden_states).view(
-            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+            bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = self.k_proj(hidden_states).view(
-            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+            bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         value_states = self.v_proj(hidden_states).view(
-            bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+            bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
 
         kv_seq_len = key_states.shape[-2]
 
@@ -89,11 +91,11 @@ class Attention(nn.Module):
 
         attn_weights = torch.matmul(
             query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
-        assert attn_weights.size() == (bsz, self.num_heads, q_len, kv_seq_len)
+        assert attn_weights.size() == (bsz, self.num_heads, seq_len, kv_seq_len)
 
         # 如果有注意力掩码，则进行掩码处理
         if attention_mask is not None:
-            assert attention_mask.size() == (bsz, 1, q_len, kv_seq_len)
+            assert attention_mask.size() == (bsz, 1, seq_len, kv_seq_len)
             attn_weights = attn_weights + attention_mask
             attn_weights = torch.max(
                 attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
@@ -104,10 +106,10 @@ class Attention(nn.Module):
             query_states.dtype)
         attn_output = torch.matmul(attn_weights, value_states)
 
-        assert attn_output.size() == (bsz, self.num_heads, q_len, self.head_dim)
+        assert attn_output.size() == (bsz, self.num_heads, seq_len, self.head_dim)
 
         attn_output = attn_output.transpose(1, 2)
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+        attn_output = attn_output.reshape(bsz, seq_len, self.hidden_size)
         attn_output = self.o_proj(attn_output)
 
         return attn_output
@@ -145,6 +147,67 @@ class Attention(nn.Module):
         q_embed = (q * cos) + (self.rotate_half(q) * sin)
         k_embed = (k * cos) + (self.rotate_half(k) * sin)
         return q_embed, k_embed
+
+
+class LinearRegression(object):
+    def __init__(self, fit_intercept=True, if_standard=True,
+                 epochs=10, eta=1e-2, batch_size=1, l1_ratio=None, l2_ratio=None):
+        """
+        :param fit_intercept: 是否训练bias
+        :param solver:
+        :param if_standard:  g
+        """
+        self.w = None
+        self.fit_intercept = fit_intercept
+        self.if_standard = if_standard
+        if if_standard:
+            self.feature_mean = None
+            self.feature_std = None
+        self.epochs = epochs
+        self.eta = eta
+        self.batch_size = batch_size
+        self.l1_ratio = l1_ratio
+        self.l2_ratio = l2_ratio
+
+    def init_params(self, n_features):
+        self.w = np.random.random(size=(n_features, 1))
+
+    def _fit_sgd(self, x, y):
+        """随机梯度下降求解"""
+        x_y = np.c_[x, y]
+        # 按 batch_size 更新 w,b
+        for _ in range(self.epochs):
+            np.random.shuffle(x_y)
+            for index in range(x_y.shape[0] // self.batch_size):
+                batch_x_y = x_y[self.batch_size * index:self.batch_size * (index + 1)]
+                batch_x = batch_x_y[:, :-1]
+                batch_y = batch_x_y[:, -1:]
+
+                dw = -2 * batch_x.T.dot(batch_y - batch_x.dot(self.w)) / self.batch_size
+
+                # 添加l1和l2的部分
+                dw_reg = np.zeros(shape=(x.shape[1] - 1, 1))
+                if self.l1_ratio is not None:
+                    dw_reg += self.l1_ratio * self.sign_func(self.w[:-1]) / self.batch_size
+                if self.l2_ratio is not None:
+                    dw_reg += 2 * self.l2_ratio * self.w[:-1] / self.batch_size
+                dw_reg = np.concatenate([dw_reg, np.asarray([[0]])], axis=0)
+                dw += dw_reg
+                self.w = self.w - self.eta * dw
+
+    def fit(self, x, y):
+        # 是否归一化feature
+        if self.if_standard:
+            self.feature_mean = np.mean(x, axis=0)
+            self.feature_std = np.std(x, axis=0) + 1e-8
+            x = (x - self.feature_mean) / self.feature_std
+        # 是否训练bias
+        if self.fit_intercept:
+            x = np.c_[x, np.ones_like(y)]
+        # 初始化参数
+        self.init_params(x.shape[1])
+        # 训练模型
+        self._fit_sgd(x, y)
 
 
 if __name__ == '__main__':
