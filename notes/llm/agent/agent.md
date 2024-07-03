@@ -37,6 +37,22 @@
 
    一种reinforce language agents，按照 task -> trajectory -> evaluation -> Reflection(如果失败则反思) -> next trajectory... 的模式来解决问题。
 
+## Agent
+Agent 架构主要分为：Profile, Memory, Planning, Action。
+- Profile：确定 agent 角色，描述 agent 的属性，如：角色、目标、能力、知识和行为方式等；
+   1. 手工设定
+   2. 根据种子档案使用 LLM 生成
+   3. 根据现实世界调查数据集中参与者的人口背景进行初始化的
+- Memory：记录过去行为
+   统一内存：不区分短期和长期记忆。该框架为读取、写入和反映内存提供了统一的接口。
+   混合内存：区分了短期和长期功能。短期组件临时缓冲最近的感知，而长期记忆则随着时间的推移巩固重要信息。
+- Planning：规划未来行动
+   无反馈规划：CoT
+   有反馈规划：ReAct
+
+
+
+
 ## Agent 框架
 
 ### LangChain
