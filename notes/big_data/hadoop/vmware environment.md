@@ -90,8 +90,8 @@
    ln -s /export/server/jdk/bin/java /usr/bin/java
    
    # 9.关闭防火墙、SELinux （root）
-   systemctl stop firewalld
-   systemctl disable firewalld  # 关闭开机自启
+   systemctl stop ufw (centos: systemctl stop firewalld)
+   systemctl disable ufw (centos: systemctl disable firewalld)  # 关闭开机自启
    
    vim /etc/sysconfig/selinux
    SELINUX=disabled  # 注：写错系统将无法启动
