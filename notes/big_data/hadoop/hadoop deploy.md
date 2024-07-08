@@ -110,8 +110,35 @@ start-dfs.sh  # 一键式启动集群，可以jps查看
 stop-dfs.sh
 ```
 
-`start-dfs.sh` -> 启动SecondaryNameNode -> 根据core-site.xml的记录启动NameNode -> 根据workers记录启动多个DataNode
-http://node1:9870/  # 监控Hadoop
+http://node1:9870/ (云部署需要使用外网IP)  # 监控Hadoop
 此时，可以进行快照，保存初始状态 （init 0 关机；init 6 重启）
 
 2. 操作HDFS
+- `start-dfs.sh`：一键启动HDFS集群
+   启动SecondaryNameNode -> 1) 读取core-site.xml的记录启动NameNode；2) 读取workers记录启动全部DataNode。
+- `stop-dfs.sh`：一键关闭HDFS集群
+   关闭SecondaryNameNode -> 1) 读取core-site.xml的记录关闭NameNode；2) 读取workers记录关闭全部DataNode。
+
+`hadoop-daemon.sh (status/start/stop) (namenode/secondarynamenode/datanode)`
+   使用 $HADOOP_HOME/sbin/hadoop-daemon.sh 控制脚本所在机器的进程的启停
+`hdfs --daemon (status/start/stop) (naenode/secondarynamenode/daatanode)`
+   使用 $HADOOP_HOME/bin/hdfs 控制脚本所在机器的进程的启停
+
+
+文件系统（采用协议头）：
+   linux: file:///  # 根目录
+   hdfs: hdfs://namenode_ip:port/  # 根目录
+
+hdfs dfs [generic option] / hadoop fs [generic option] (旧版本)
+   hdfs dfs -put [-f] [-p] <linux_dir> <hdfs_dir>  # linux 上传到 hdfs
+   hdfs dfs -get [-f] [-p] <hdfs_dir> <linux_dir>  # hdfs 下载到 linux
+   
+   # 只能删除和追加，不能修改
+   hdfs dfs -appendToFile <local_file> <hdfs_file>  # 本地文件追加到hdfs
+   hdfs dfs -rm [-r] [-skipTrash]  # 删除文件，hdfs有回收站，但默认关闭，需要在core-site.xml中配置开启
+
+   hdfs dfs -madir [-p] <path>  # 后面的命令同Linux相似
+   hdfs dfs -ls -R
+   hdfs dfs -cat <dir> | more
+   
+注：WEB UI也可以操作（Utilities -> Browse the file system）
