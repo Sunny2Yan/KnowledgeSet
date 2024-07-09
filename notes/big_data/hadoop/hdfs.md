@@ -207,3 +207,24 @@ vim hdfs-site.xml  # 每个节点都需要
    `hdfs dfs -D dfs.replication=2 -put test.txt /temp/`：上传时修改，`-D` 表示自定义配置项
    `hdfs dfs -setrep [-R] 2 test.txt`: 对已经存在的文件修改
 
+## NameNode元数据
+存放在 NameNode `/data/nn/` 下，由 SecondaryNameNode 做合并操作。
+edits 文件（多个 1-n）：流水账文件，记录hdfs中的每一次操作，及文件，和文件对应的 block
+FSImage 文件：记录 edits 中每个文件的最终状态。
+
+1. edits 记录每次对 hdfs 的操作；
+2. edits 达到上限后，开启新的 edits；
+3. 定期进行对 edits 的合并操作（如：增删等于不操作）保存为 fsimage；
+
+## HDFS 数据读写
+写入流程：
+1. client 向 NameNode 发起请求；
+2. NameNode 审核权限、剩余空间，满足条件允许写入，并告知 client 写入的 DataNode 地址；
+3. client 向指定的 DataNode 发送数据包；
+4. 被写入数据的 DataNode 同时完成数据副本的复制工作，将其接受的数据分发给其它 DataNode；
+5. 写入完成 client 通知 NameNode，NameNode 做元数据记录工作。
+
+读取流程：
+1. client 向 NameNode 申请读取某文件；
+2. NameNode 判断 client 权限等问题后允许读取，并返回此文件的 block 列表；
+3. client 拿到 block 列表后自行寻找 DataNode 读取即可。
