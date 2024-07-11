@@ -168,7 +168,7 @@ class AdaptionPromptModel(nn.Module):
                 f" than the model has '{len(parents)}'."
             )
         # Note that if the target modules are not in Sequential, ModuleList, or
-        # some other PyTorch ordered container, the behavior is undefined as we
+        # some other PyTorch ordered container.md, the behavior is undefined as we
         # assume here that the order of the modules is the same as the order of
         # the transformer decoder layers.
         parents = parents[-config.adapter_layers :]

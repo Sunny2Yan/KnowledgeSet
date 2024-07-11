@@ -141,3 +141,6 @@ class OpenAILLM(LLM):
                 save_logs(self.log_path, messages, content)
 
         return response, content
+
+
+from openai import OpenAI
