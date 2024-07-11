@@ -104,7 +104,7 @@ http://node1:9870/ (云部署需要使用外网IP)  # 监控Hadoop
 - 单独启动 HDFS 进程
    `hadoop-daemon.sh (status/start/stop) (namenode/secondarynamenode/datanode)`：
    使用 $HADOOP_HOME/sbin/hadoop-daemon.sh 控制脚本所在机器的进程的启停
-   `hdfs --daemon (status/start/stop) (naenode/secondarynamenode/daatanode)`：
+   `hdfs --daemon (status/start/stop) (namenode/secondarynamenode/datanode)`：
    使用 $HADOOP_HOME/bin/hdfs 控制脚本所在机器的进程的启停
 
 2. hdfs 文件操作
