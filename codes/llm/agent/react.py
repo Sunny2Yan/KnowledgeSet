@@ -18,7 +18,7 @@ class VLLMModel:
 
         return chat_response
 
-# chat_response.choices[0].message.content
+
 prompt = """
 你在一个思考、行动、暂停、观察的循环中运行。
 在循环结束时，你输出一个答案
@@ -50,7 +50,7 @@ prompt = """
 然后您输出：
 
 答案：斗牛犬重 51 磅
-""".strip()
+"""
 
 
 class ReActAgent:
@@ -67,7 +67,7 @@ class ReActAgent:
         self.messages.append({"role": "assistant", "content": result})
         return result
 
-    def execute(self):
+    def execute(self) -> str:
         completion = self.llm.inference(self.messages)
         return completion.choices[0].message.content
 
@@ -92,17 +92,16 @@ known_actions = {
     "average_dog_weight": average_dog_weight
 }
 
-abot = Agent(prompt)
-result = abot("玩具贵宾犬有多重？")
+agent = ReActAgent(prompt)
+result = agent("玩具贵宾犬有多重？")
 print(result)
 # 想法：我应该使用平均狗体重动作来查找玩具贵宾犬的平均体重。
 # 动作：average_dog_weight：玩具贵宾犬
 # 暂停
-
 result = average_dog_weight("玩具贵宾犬")  # 手动执行
 
 next_prompt = "Observation: {}".format(result)
-abot(next_prompt)
+agent(next_prompt)
 # {'role': 'assistant', 'content': 'Answer: 玩具贵宾犬的平均体重为 7 磅'}
 
 # -----------------以上就是一轮完整的react------------------------
@@ -111,12 +110,12 @@ import re
 
 action_re = re.compile('^Action: (\w+): (.*)$')   # re selection action
 
-def query(question, max_turns=5):
-    i = 0
-    bot = Agent(prompt)
+def query(question, max_rounds=5):
+    round = 0
+    bot = ReActAgent(prompt)
     next_prompt = question
-    while i < max_turns:
-        i += 1
+    while round < max_rounds:
+        round += 1
         result = bot(next_prompt)
         print(result)
         actions = [
@@ -137,8 +136,7 @@ def query(question, max_turns=5):
             return
 
 
-question = """我有两只狗，一只边境牧羊犬和一只苏格兰梗犬。
-它们的总体重是多少"""
+question = """我有两只狗，一只边境牧羊犬和一只苏格兰梗犬。它们的总体重是多少"""
 query(question)
 
 # 想法：我需要找到边境牧羊犬和苏格兰梗的平均体重，然后将它们加在一起得到总体重。
@@ -157,3 +155,5 @@ query(question)
 # -- 运行计算 37 + 20
 # 观察：57
 # 答案：边境牧羊犬和苏格兰梗的总体重为 57 磅。
+
+# https://github.com/noahshinn/reflexion
