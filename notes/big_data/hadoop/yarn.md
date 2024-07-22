@@ -152,3 +152,10 @@ scp mapred-env.sh mapred-site.xml yarn-env.sh yarn-site.xml node3:`pwd`/
    使用 $HADOOP_HOME/bin/yarn 控制脚本所在机器的进程的启停
 - 历史服务器的启停
    `$HADOOP_HOME/bin/mapred --daemon (start/stop) historyserver`
+
+2. 提交 MapReduce 程序到 YARN 运行
+YARN 作为资源调度框架，本身提供资源供其他程序运行，常见的有：MapReduce、Spark、Flink。
+
+MapReduce 内置程序代码在 `$HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-example-xxx.jar` 文件内
+可以通过 `hadoop jar 程序文件 java类名 [参数] [参数]` 将 MapReduce 提交到 YARN 中运行。
+eg: `hadoop jar /export/server/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-example-xxx.jar wordcount hdfs://node1:8020/input hdfs://node1:8020/output/save_file`
