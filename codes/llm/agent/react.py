@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+import re
 from openai import OpenAI
 
 
 class VLLMModel:
     def inference(self, messages: list[dict]):
-        client = OpenAI(api_key="EMPTY", base_url="http://localhost:8000/v1")
+        client = OpenAI(api_key="EMPTY", base_url="http://8000.lzx.aip.ennewi.cn/v1")
         models = client.models.list()
         model = models.data[0].id
         chat_response = client.chat.completions.create(
@@ -106,8 +107,6 @@ agent(next_prompt)
 
 # -----------------以上就是一轮完整的react------------------------
 # 自动调用
-import re
-
 action_re = re.compile('^Action: (\w+): (.*)$')   # re selection action
 
 def query(question, max_rounds=5):
@@ -155,5 +154,3 @@ query(question)
 # -- 运行计算 37 + 20
 # 观察：57
 # 答案：边境牧羊犬和苏格兰梗的总体重为 57 磅。
-
-# https://github.com/noahshinn/reflexion
