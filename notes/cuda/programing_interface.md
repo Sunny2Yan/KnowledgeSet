@@ -11,6 +11,12 @@ eg1: nvcc helloworld.cu -o helloworld -arch=compute_61
 可以在计算能力 >=6.1 的 GPU 上执行
 eg2: nvcc helloworld.cu -o helloworld -arch=compute_61 -code=sm_61
 
+还可以同时指定多组计算能力编译（编译后包含4个二进制版本）：
+   -gencode arch=compute_35,code=sm_35
+   -gencode arch=compute_50,code=sm_50
+   -gencode arch=compute_60,code=sm_60
+   -gencode arch=compute_70,code=sm_70
+
 
 
 
