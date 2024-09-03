@@ -1,4 +1,5 @@
 # VIM
+
 vim 共三种模式，命令模式（Command mode），输入模式（Insert mode）和底线命令模式（Last line mode）。
 
 - Command mode：初始状态，输入为命令。
@@ -8,10 +9,25 @@ vim 共三种模式，命令模式（Command mode），输入模式（Insert mod
 Command -(iao)-> Insert；Insert -(esc)-> Command；Command -(:)-> Last line；Last line -(enter)-> Command
 
 ## 1. Command mode
+按 `esc` 进入命令模式
 
+```bash
+gg  # 光标回到行首
+ggdG  # 删除全部文本（必须先回到行首，且区分大小写）
+ggvG  # 全选
+ggyG  # 全选并复制
+
+yy  # 单行复制
+dd  # 单行删除
+p  # 粘贴
+
+# 改写文件
+i | a    # 在光标的（当前 / 下一个）位置开始输入文本
+u  # 撤销本次进入文件后的所有操作
+ctrl + r  # 撤销 u 的操作，即还原撤销
+```
 
 ## 2.Insert mode
-
 
 ## 3.Last line mode
 
@@ -27,12 +43,7 @@ n | N  # （下一个 / 上一个）查找的词
 :%s/word1/word2/g  # 从第一行到最后一行寻找 word1 字符串，并将该字符串取代为 word2 
 :%s/word1/word2/gc  # 添加用户确认步骤
 
-# 3. 改写文件
-i | a    # 在光标的（当前 / 下一个）位置开始输入文本
-u  # 撤销本次进入文件后的所有操作
-ctrl + r  # 撤销 u 的操作，即还原撤销
-
-# 4. 
+# 3. 
 :w filename        # 当前内容写入另一个文件；
 :r filename        # 将另一个文件的内容写入到当前文件；
 :n1 n2 w filename  # n1到n2行的内容复制到另一个文件；
