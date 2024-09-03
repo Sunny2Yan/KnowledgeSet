@@ -195,3 +195,26 @@ set guicursor+=i:blinkwait10
 " let python excution in VIM
 imap <F5> <Esc>:w<CR>:!clear;python %<CR>
 ```
+
+
+## 插件
+1. 先安装 `vundle` 插件管理器
+2. 配置 `.vimrc` 文件
+
+```
+set rtp+=~/.vim/bundle/Vundle.vim
+call vundle#begin()
+"call vundle#begin('~/some/path/here')  " 可以直接设置路径
+Plugin 'VundleVim/Vundle.vim'  " 让 Vundle 管理vim插件, required
+
+" 以下是支持的不同格式的示例（需要在vundle#begin/end之间）：
+" 1. plugin on GitHub repo
+Plugin 'tpope/vim-fugitive'
+" 2. plugin from http://vim-scripts.org/vim/scripts.html
+Plugin 'git://git.wincent.com/command-t.git'
+" 3. 已经下载的插件
+Plugin 'file:///home/gmarik/path/to/plugin'
+
+call vundle#end()            " required
+filetype plugin indent on    " required
+```
