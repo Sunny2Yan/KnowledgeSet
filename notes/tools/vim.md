@@ -34,6 +34,7 @@ ctrl + r  # 撤销 u 的操作，即还原撤销
 ## 2.Insert mode
 
 ## 3.Last line mode
+按 `:` 进入最后一行模式
 
 ```bash
 # 1. 进入或退出文件
