@@ -202,6 +202,9 @@ imap <F5> <Esc>:w<CR>:!clear;python %<CR>
 2. 配置 `.vimrc` 文件
 
 ```
+set nocompatible              " be iMproved, required
+filetype off                  " required
+
 set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 "call vundle#begin('~/some/path/here')  " 可以直接设置路径
@@ -218,3 +221,5 @@ Plugin 'file:///home/gmarik/path/to/plugin'
 call vundle#end()            " required
 filetype plugin indent on    " required
 ```
+
+3. 通过 vim 命令 `:PluginInstall` 安装插件
