@@ -21,6 +21,10 @@ yy  # 单行复制
 dd  # 单行删除
 p  # 粘贴
 
+# 搜索词
+/word | ?word  # 光标之（下 / 上）查找某个词
+n | N  # （下一个 / 上一个）查找的词
+
 # 改写文件
 i | a    # 在光标的（当前 / 下一个）位置开始输入文本
 u  # 撤销本次进入文件后的所有操作
@@ -37,8 +41,6 @@ ctrl + r  # 撤销 u 的操作，即还原撤销
 
 # 2. 文件查看
 :set nu | :set nonu  # 显示（不显示）行号；
-/word | ?word  # 光标之（下 / 上）查找某个词
-n | N  # （下一个 / 上一个）查找的词
 :n1,n2s/word1/word2/g  # n1 与 n2 行之间寻找 word1 字符串，并将该字符串取代为 word2
 :%s/word1/word2/g  # 从第一行到最后一行寻找 word1 字符串，并将该字符串取代为 word2 
 :%s/word1/word2/gc  # 添加用户确认步骤
@@ -55,7 +57,7 @@ n | N  # （下一个 / 上一个）查找的词
 
 在用户主目录下建立个.vimrc文件并配置，root账户在/root/下建立一个.vimrc文件。
 
-~~~
+```
 ".vimrc
 "This is xxxx's vimrc
 
@@ -191,4 +193,4 @@ set guicursor+=i:blinkwait10
 
 " let python excution in VIM
 imap <F5> <Esc>:w<CR>:!clear;python %<CR>
-~~~
+```
