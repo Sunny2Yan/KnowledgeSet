@@ -210,13 +210,102 @@ class LinearRegression(object):
         self._fit_sgd(x, y)
 
 
+# RNN实现
+class CustomRNN:
+    def __init__(self, batch_size, seq_len, input_size, hidden_size, is_bidirect):
+        self.batch_size, self.seq_len = 2, 3  # batch size, sequence length
+        self.input_size, self.hidden_size = 2, 3
+        self.is_bidirect = is_bidirect
+
+        # x = torch.randn(bs, L, input_size)
+        self.h_prev = torch.zeros(batch_size, hidden_size)
+        self.bi_h_prev = torch.zeros(2, batch_size, hidden_size)
+        self.rnn, self.bi_rnn = None, None
+
+    def api_mode(self, x: torch.Tensor):
+        """The api model in torch
+        :param x: a tensor of shape [batch_size, seq_len, input_size]
+        :return: bi_rnn_out, bi_state_final
+        """
+        self.rnn = nn.RNN(self.input_size, self.hidden_size, batch_first=True)
+        self.bi_rnn = nn.RNN(self.input_size, self.hidden_size,
+                             batch_first=True, bidirectional=True)
+        rnn_out, state_final = self.rnn(x, self.h_prev.unsqueeze(0))
+        bi_rnn_out, bi_state_final = self.bi_rnn(x, self.bi_h_prev)
+
+        if not self.is_bidirect:
+            return rnn_out, state_final
+        else:
+            return bi_rnn_out, bi_state_final
+
+    def function_mode(self, x: torch.Tensor):
+        """
+        :param x: a tensor of shape [batch_size, seq_len, input_size]
+        :return: bi_rnn_out, bi_state_final
+        """
+        custom_rnn_out, custom_state_final = self.rnn_forward(
+            x, self.rnn.weight_ih_l0, self.rnn.weight_hh_l0,
+            self.rnn.bias_ih_l0, self.rnn.bias_hh_l0, self.h_prev)
+
+        custom_bi_rnn_out, custom_bi_state_final = self.bidirectional_rnn_forward(
+            x, self.bi_rnn.weight_ih_l0, self.bi_rnn.weight_hh_l0,
+            self.bi_rnn.bias_ih_l0, self.bi_rnn.bias_hh_l0, self.bi_h_prev[0],
+            self.bi_rnn.weight_ih_l0_reverse, self.bi_rnn.weight_hh_l0_reverse,
+            self.bi_rnn.bias_ih_l0_reverse, self.bi_rnn.bias_hh_l0_reverse,
+            self.bi_h_prev[1])
+
+        if not self.is_bidirect:
+            return custom_rnn_out, custom_state_final
+        else:
+            return custom_bi_rnn_out, custom_bi_state_final
+
+    @staticmethod
+    def rnn_forward(x, weight_ih, weight_hh, bias_ih, bias_hh, h_prev):
+        batch_size, seq_len, input_size = x.shape
+        h_dim = weight_ih.shape[0]
+        h_out = torch.zeros(batch_size, seq_len, h_dim)  # 状态矩阵
+
+        for sl in range(seq_len):
+            x_ = x[:, sl, :].unsqueeze(2)  # 当前时刻特征 [bs, input_size, 1]
+            # [bs, h_dim, input_size]
+            w_ih_batch = weight_ih.unsqueeze(0).tile(batch_size, 1, 1)
+            w_hh_batch = weight_hh.unsqueeze(0).tile(batch_size, 1, 1)
+
+            # [bs, h_dim]
+            w_times_x = torch.bmm(w_ih_batch, x_).squeeze(-1)
+            w_times_h = torch.bmm(w_hh_batch, h_prev.unsqueeze(2)).squeeze(-1)
+            h_prev = torch.tanh(w_times_x + bias_ih + w_times_h + bias_hh)
+
+            h_out[:, sl, :] = h_prev
+
+        return h_out, h_prev.unsqueeze(0)
+
+    def bidirectional_rnn_forward(
+            self, x, weight_ih, weight_hh, bias_ih, bias_hh, h_prev,
+            weight_ih_reverse, weight_hh_reverse, bias_ih_reverse,
+            bias_hh_reverse, h_prev_reverse):
+        batch_size, seq_len, input_size = x.shape
+        h_dim = weight_ih.shape[0]
+        h_out = torch.zeros(batch_size, seq_len, h_dim * 2)  # 状态矩阵
+
+        forward_out = self.rnn_forward(
+            x, weight_ih, weight_hh, bias_ih, bias_hh, h_prev)[0]
+        backward_out = self.rnn_forward(
+            torch.flip(x, [1]), weight_ih_reverse, weight_hh_reverse,
+            bias_ih_reverse, bias_hh_reverse, h_prev_reverse)[0]
+
+        h_out[:, :, :h_dim] = forward_out
+        h_out[:, :, h_dim:] = backward_out
+
+        return h_out, h_out[:, -1, :].reshape((batch_size, 2, h_dim)).transpose(0, 1)
+
+
 if __name__ == '__main__':
     dim = 12
     base = 10000
     device = None
     max_tokens = 24
-    inv_freq = 1.0 / (base ** (torch.arange(
-        0, dim, 2).float().to(device) / dim))
+    inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
     t = torch.arange(
         max_tokens,
         device=inv_freq.device,
