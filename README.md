@@ -19,14 +19,12 @@ This is a place to record scraps of notes from study and work.
 15. [math](codes/leetcode/math.py)
 16. [finite state machine](codes/leetcode/finite_state_machine.py)
 
-# LLM
+## LLM
 1. [distribution](notes/llm/distribution/README.md)
 2. [model architecture](notes/llm/model_architecture/README.md)
 3. [fine tuning](notes/llm/fine_tuning/README.md)
 4. [inference](notes/llm/inference/README.md)
 5. [agent](notes/llm/agent/README.md)
-
-
 6. [tokenizer](notes/llm/tokenizer.md) ([code](codes/llm/tokenizer.py))
 7. [position](notes/llm/position.md) ([code](codes/llm/position.py))
 8. [activation](notes/llm/activation.md) ([code](codes/llm/activation.py))
