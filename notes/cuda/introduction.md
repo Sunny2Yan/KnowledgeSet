@@ -1,4 +1,4 @@
-# CUDA 编程
+# CUDA (Compute Unified Device Architecture)编程
 一般 CPU 称为 host，GPU 称为 device，host 与 device之间的内存访问一般通过 PCIE 总线链接（传输速度慢）。
 注：GPU 不能单独计算，需要 CPU 做调度。
 
