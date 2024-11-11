@@ -342,13 +342,13 @@ class BERTTrainer:
         :param lr: learning rate of optimizer
         :param betas: Adam optimizer betas
         :param weight_decay: Adam optimizer weight decay param
-        :param with_cuda: traning with cuda
+        :param with_cuda: traning with cuda_programming
         :param log_freq: logging frequency of the batch iteration
         """
 
-        # Setup cuda device for BERT training, argument -c, --cuda should be true
+        # Setup cuda_programming device for BERT training, argument -c, --cuda_programming should be true
         cuda_condition = torch.cuda.is_available() and with_cuda
-        self.device = torch.device("cuda:0" if cuda_condition else "cpu")
+        self.device = torch.device("cuda_programming:0" if cuda_condition else "cpu")
 
         # This BERT model will be saved every epoch
         self.bert = bert

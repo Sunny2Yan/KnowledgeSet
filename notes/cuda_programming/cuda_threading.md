@@ -1,4 +1,4 @@
-# 编程模型
+# CUDA 线程组织
 
 ## 1. 核函数
 CUDA 程序开发既需要编写在 CPU 上面的 host 代码，也要编写运行在 GPU 上面的 device 代码，host 对 device 的调用是通过 kernel function 进行的。
@@ -60,7 +60,7 @@ int main(void)
 // ./test  运行
 ```
 
-## 2. 线程层次结构
+## 2. 线程组织
 启动一个核函数包含一个 grid，grid 中包含若干个 thread block, 即 <<<grid_size, block_size>>>。
 线程是 GPU 编程中的最小单位，线程分块是逻辑上的划分，物理上不分块。
 最大线程块大小：1024；最大网格大小：2^31-1（一维网格）
@@ -121,7 +121,35 @@ int main(void)
 }
 ```
 
+## 3. nvcc 编译 cuda
+编译流程：
+1. nvcc分离全部源码：host code(c/c++语言), device code(c/c++扩展语言)
+2. nvcc 将device code编译为 PTX（Parallel Thread Execution）为伪汇编代码，使用 `-arch=compute_XY`指定虚拟架构的计算能力
+3. 将PTX编译为二进制的cubin目标代码，使用 `-code=sm_ZW`指定真实架构的计算能力（指定真实架构能力时必须指定且大于虚拟架构能力）
+
+### 3.1 CUDA 兼容性问题
+eg1: nvcc helloworld.cu -o helloworld -arch=compute_61
+可以在计算能力 >=6.1 的 GPU 上执行
+eg2: nvcc helloworld.cu -o helloworld -arch=compute_61 -code=sm_61  （-arch < -code）
+
+还可以同时指定多组计算能力编译（编译后包含4个二进制版本）：
+
+   -gencode arch=compute_35,code=sm_35
+   -gencode arch=compute_50,code=sm_50
+   -gencode arch=compute_60,code=sm_60
+   -gencode arch=compute_70,code=sm_70
+
+### 3.2 即时编译（just-in-time compilation）
+在运行可执行文件时从其中保留的 PTX 代码临时编译出一个 cubin 目标代码
+
+    -gencode arch=compute_35,code=sm_35  // arch 与 code 必须完全一致
+    -gencode arch=compute_50,code=sm_50
+    -gencode arch=compute_60,code=sm_60
+    -gencode arch=compute_60,code=compute_60  // 保留 PTX 代码 
+
 ## 3. 内存层次结构
 1. 每个线程都有私有的本地内存 (local memory)。 
 2. 每个线程块都具有共享内存 (shared memory)，该共享内存内存对该块中的所有线程可见，并且具有与该块相同的生命周期。 
 3. 所有线程都可以访问相同的全局内存 (global memory)。
+
+

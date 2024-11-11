@@ -82,7 +82,7 @@ print("env.observation_space: ", env.observation_space.shape[0])
 obs_size = env.observation_space.shape[0]
 act_size = env.action_space.shape[0]
 
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda_programming:0" if torch.cuda_programming.is_available() else "cpu")
 device = torch.device("cpu")
 actor = Actor(obs_size, act_size).to(device)
 critic = Critic(obs_size).to(device)

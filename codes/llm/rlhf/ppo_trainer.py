@@ -449,7 +449,7 @@ class PPOTrainer(BaseTrainer):
             elif is_npu_available():
                 self.current_device = torch.device("npu:0")
             else:
-                self.current_device = torch.device("cuda:0")
+                self.current_device = torch.device("cuda_programming:0")
 
         PPODecorators.optimize_device_cache = self.config.optimize_device_cache
 

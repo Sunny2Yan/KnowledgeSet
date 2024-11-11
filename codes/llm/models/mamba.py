@@ -100,7 +100,7 @@ class S6(nn.Module):
 
 
 class RMSNorm(nn.Module):
-    def __init__(self, d_model: int, eps: float = 1e-5, device: str = 'cuda'):
+    def __init__(self, d_model: int, eps: float = 1e-5, device: str = 'cuda_programming'):
         super().__init__()
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(d_model, device=device))

@@ -10,8 +10,10 @@ __global__ void hello_from_gpu()
 
 int main(void)
 {
-    hello_from_gpu<<<2, 4>>>();
+    hello_from_gpu<<<2, 4>>>();  // <grid_size, block_size>
     cudaDeviceSynchronize();
 
     return 0;
 }
+
+// 每个线程块的计算是相互独立的

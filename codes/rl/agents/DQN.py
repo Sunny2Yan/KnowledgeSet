@@ -202,7 +202,7 @@ class Configs:
     buffer_size = 10000
     minimal_size = 500
     batch_size = 64
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device("cuda_programming") if torch.cuda.is_available() else torch.device("cpu")
 
     env_name = 'CartPole-v0'
     env = gym.make(env_name)

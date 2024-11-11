@@ -65,7 +65,7 @@ import torch
 from torch.distributed._tensor import DeviceMesh
 from torch.distributed.tensor.parallel import PairwiseParallel, parallelize_module
 
-device_mesh = DeviceMesh("cuda", torch.arange(0, world_size))
+device_mesh = DeviceMesh("cuda_programming", torch.arange(0, world_size))
 
 model = Model().cuda(rank)
 optimizer = torch.optim.SGD(model.parameters(), lr=0.25)

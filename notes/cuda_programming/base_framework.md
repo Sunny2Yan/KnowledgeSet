@@ -1,28 +1,7 @@
-# 编程接口
-
-nvcc 编译流程：
-1. nvcc分离全部源码：host code(c/c++语言), device code(c/c++扩展语言)
-2. nvcc 将device code编译为 PTX（Parallel Thread Execution）为汇编代码，使用 `-arch=compute_XY`指定虚拟架构的计算能力
-3. 将PTX编译为二进制的cubin目标代码，使用 `-code=sm_ZW`指定真实架构的计算能力（指定真实架构能力时必须指定且大于虚拟架构能力）
+# CUDA 基本框架
 
 
-## 1. CUDA 兼容性问题
-eg1: nvcc helloworld.cu -o helloworld -arch=compute_61
-可以在计算能力 >=6.1 的 GPU 上执行
-eg2: nvcc helloworld.cu -o helloworld -arch=compute_61 -code=sm_61
-
-还可以同时指定多组计算能力编译（编译后包含4个二进制版本）：
-   -gencode arch=compute_35,code=sm_35
-   -gencode arch=compute_50,code=sm_50
-   -gencode arch=compute_60,code=sm_60
-   -gencode arch=compute_70,code=sm_70
-
-
-
-
-
-
-## 5. 加法运算
+## 加法运算
 1. 设置 GPU 设备
 2. 分配 host 与 device 内存
 3. 初始化 host 中的数据

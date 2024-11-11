@@ -51,7 +51,7 @@ class PolicyGradient(object):
         # print("env.observation_space.high: ", self.env.observation_space.high)
         # print("env.observation_space.low: ", self.env.observation_space.low)
         self.writer = SummaryWriter(comment="-cartpole-pg")
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda_programming:0" if torch.cuda.is_available() else "cpu")
 
         self.policy = Policy(self.env.observation_space.shape[0], 16,
                              self.env.action_space.n).to(self.device)

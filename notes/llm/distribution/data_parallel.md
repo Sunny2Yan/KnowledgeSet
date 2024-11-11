@@ -20,8 +20,8 @@ note 3: 数据并行不仅仅指对训练的数据并行操作，还可以对网
 ```python
 import torch
 
-model = torch.nn.Linear(10, 10).to('cuda')
-input_var = torch.randn(20, 10).to('cuda')
+model = torch.nn.Linear(10, 10).to('cuda_programming')
+input_var = torch.randn(20, 10).to('cuda_programming')
 net = torch.nn.DataParallel(model, device_ids=[0, 1, 2])
 output = net(input_var)  # input_var can be on any device, including CPU
 ```
@@ -103,7 +103,7 @@ import torch.nn as nn
 from torch.distributed.fsdp import FullyShardedDataParallel, CPUOffload
 from torch.distributed.fsdp.wrap import default_auto_wrap_policy
 
-model = nn.Linear(8, 4).to('cuda')
+model = nn.Linear(8, 4).to('cuda_programming')
 model = DistributedDataParallel(model())
 
 fsdp_model = FullyShardedDataParallel(

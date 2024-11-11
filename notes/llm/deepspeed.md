@@ -5,16 +5,16 @@ torch调用CUDA只需要将数据和模型拷贝到 GPU 上即可。
 ```python
 # 方法一
 if torch.cuda.is_available():
-    model.cuda()  # 不需要 model=model.cuda()
+    model.cuda()  # 不需要 model=model.cuda_programming()
     data.cuda()
 
 # 方法二
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda_programming:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 data.to(device)
 
 # 载入模型时，可以直接加载到 GPU 上
-torch.load(file.pt, map_location=torch.device('cuda'/'cuda:0'/'cpu'))
+torch.load(file.pt, map_location=torch.device('cuda_programming'/'cuda_programming:0'/'cpu'))
 ```
 
 ## 1. DataParallel
@@ -107,13 +107,13 @@ python -m torch.distributed.launch --nproc_per_node=n_gpus --nnodes=2(机器数)
 class Net(nn.Module):
   def __init__(self):
     super(ToyModel, self).__init__()
-    self.net1 = torch.nn.Linear(10, 10).to('cuda:0')  # 将net1放置在第1个GPU上
+    self.net1 = torch.nn.Linear(10, 10).to('cuda_programming:0')  # 将net1放置在第1个GPU上
     self.relu = torch.nn.ReLU()
-    self.net2 = torch.nn.Linear(10, 5).to('cuda:1')   # 将net2放置在第2个GPU上
+    self.net2 = torch.nn.Linear(10, 5).to('cuda_programming:1')   # 将net2放置在第2个GPU上
 
   def forward(self, x):
-    x = self.relu(self.net1(x.to('cuda:0')))
-    return self.net2(x.to('cuda:1'))
+    x = self.relu(self.net1(x.to('cuda_programming:0')))
+    return self.net2(x.to('cuda_programming:1'))
 ```
 
 ### 2. Pipeline Parallel
