@@ -6,7 +6,7 @@ const double a = 1.23;
 const double b = 2.34;
 const double c = 3.57;
 
-void __global__ add(const double *x, const double *y, double *z);
+void __global__ add(const double *x, const double *y, double *z, const int N);
 void check(const double *z, const int N);
 
 int main(void){
@@ -30,7 +30,7 @@ int main(void){
 
     const int block_size = 128;
     const int grid_size = N / block_size;
-    add<<<grid_size, block_size>>>(d_x, d_y, d_z);  // 每个线程计算一个元素加法
+    add<<<grid_size, block_size>>>(d_x, d_y, d_z, N);  // 每个线程计算一个元素加法
 
     cudaMemcpy(h_z, d_z, M, cudaMemcpyDeviceToHost);  // device上的数据复制会host
     check(h_z, N);
@@ -45,9 +45,11 @@ int main(void){
     return 0;
 }
 
-void __global__ add(const double *x, const double *y, double *z){
+void __global__ add(const double *x, const double *y, double *z, const int N){
     const int n = blockDim.x * blockIdx.x + threadIdx.x;
-    z[n] = x[n] + y[n];
+    if (n < N){  // 必须加上，防止引发错误
+        z[n] = x[n] + y[n];
+    }
 }
 
 void check(const double *z, const int N){
@@ -64,50 +66,32 @@ void check(const double *z, const int N){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 计时函数
-double get_walltime(){
-    struct timeval tp;
-    gettimeofday(&tp, NULL);
-    return (double) (tp.tv_sec + tp.tv_usec * 1e-6);
-}
-
-// 初始化向量数据
-void initCpu(float *hostA, float *hostB, int n){
-    for (int i = 0; i < n; i++){
-        hostA[i] = i;
-        hostB[i] = i;
-    }
-}
-
-// CPU串行实现向量加法
-void addCpu(float *hostA, float * hostB, float *hostC, int n){
-    for (int i = 0; i < n; i++){
-        hostC[i] = hostA[i] + hostB[i];
-    }
-}
-
-// GPU并行实现向量加法
-__global__ void addKernel(float *deviceA, float *deviceB, float *deviceC, int n){
-    int index = threadIdx.x + blockIdx.x * blockDim.x;  // 线程索引
-    if (index < n){  // 没有for循环，每个线程做一个加法
-        deviceC[index] = deviceA[index] + deviceB[index];
-    }
-}
+// // 计时函数
+// double get_walltime(){
+//     struct timeval tp;
+//     gettimeofday(&tp, NULL);
+//     return (double) (tp.tv_sec + tp.tv_usec * 1e-6);
+// }
+//
+// // 初始化向量数据
+// void initCpu(float *hostA, float *hostB, int n){
+//     for (int i = 0; i < n; i++){
+//         hostA[i] = i;
+//         hostB[i] = i;
+//     }
+// }
+//
+// // CPU串行实现向量加法
+// void addCpu(float *hostA, float * hostB, float *hostC, int n){
+//     for (int i = 0; i < n; i++){
+//         hostC[i] = hostA[i] + hostB[i];
+//     }
+// }
+//
+// // GPU并行实现向量加法
+// __global__ void addKernel(float *deviceA, float *deviceB, float *deviceC, int n){
+//     int index = threadIdx.x + blockIdx.x * blockDim.x;  // 线程索引
+//     if (index < n){  // 没有for循环，每个线程做一个加法
+//         deviceC[index] = deviceA[index] + deviceB[index];
+//     }
+// }
