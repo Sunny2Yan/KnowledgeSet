@@ -1,3 +1,6 @@
+import os
+import re
+import argparse
 import itertools
 import numpy as np
 from functools import partial
@@ -131,11 +134,6 @@ def naive_solve(args, task, idx, to_print=True):
     return ys, {}
 
 
-
-import os
-import re
-
-
 class TextTask:
     """
     Input (x)   : a text instruction
@@ -231,11 +229,12 @@ class TextTask:
             return -1
 
 
+args = argparse.Namespace(
+    backend='gpt-4', temperature=0.7, task='game24',
+    naive_run=False, prompt_sample=None, method_generate='propose',
+    method_evaluate='value', method_select='greedy', n_generate_sample=1,
+    n_evaluate_sample=3, n_select_sample=5)
 
-import argparse
-
-args = argparse.Namespace(backend='gpt-4', temperature=0.7, task='game24', naive_run=False, prompt_sample=None, method_generate='propose', method_evaluate='value', method_select='greedy', n_generate_sample=1, n_evaluate_sample=3, n_select_sample=5)
-
-task = Game24Task()
+task = TextTask()
 ys, infos = solve(args, task, 900)
 print(ys[0])
