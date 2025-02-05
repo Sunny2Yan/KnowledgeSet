@@ -1,27 +1,26 @@
+import gym
+import torch
 import random
 import collections
-from dataclasses import dataclass
-
 import numpy as np
-
-import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
+
 from tqdm import tqdm
+from dataclasses import dataclass
 
 
-def set_seed(env, seed=10):
+def set_seed(seed=10):
     random.seed(seed)
     np.random.seed(seed)
-    env.seed(seed)
     torch.manual_seed(seed)
 
 
 class ReplayBuffer:
-    ''' 经验回放池 '''
+    """经验回放池"""
     def __init__(self, capacity):
-        self.buffer = collections.deque(maxlen=capacity)  # 队列,先进先出
+        self.buffer = collections.deque(maxlen=capacity)
 
     def add(self, state, action, reward, next_state, done):  # 将数据加入buffer
         self.buffer.append((state, action, reward, next_state, done))
@@ -36,7 +35,7 @@ class ReplayBuffer:
 
 
 class Qnet(torch.nn.Module):
-    ''' 只有一层隐藏层的Q网络 '''
+    """只有一层隐藏层的Q网络"""
     def __init__(self, state_dim, hidden_dim, action_dim):
         super(Qnet, self).__init__()
         self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
@@ -48,7 +47,7 @@ class Qnet(torch.nn.Module):
 
 
 class ConvolutionalQnet(torch.nn.Module):
-    ''' 加入卷积层的Q网络 '''
+    """加入卷积层的Q网络"""
     def __init__(self, action_dim, in_channels=4):
         super(ConvolutionalQnet, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
@@ -67,18 +66,13 @@ class ConvolutionalQnet(torch.nn.Module):
 
 
 class DQN:
-    ''' DQN算法 '''
-    def __init__(self, state_dim, hidden_dim, action_dim, learning_rate, gamma,
-                 epsilon, target_update, device):
+    def __init__(self, state_dim, hidden_dim, action_dim, learning_rate, gamma, epsilon, target_update, device):
         self.action_dim = action_dim
-        self.q_net = Qnet(state_dim, hidden_dim,
-                          self.action_dim).to(device)  # Q网络
+        self.q_net = Qnet(state_dim, hidden_dim, self.action_dim).to(device)  # Q网络
         # 目标网络
-        self.target_q_net = Qnet(state_dim, hidden_dim,
-                                 self.action_dim).to(device)
+        self.target_q_net = Qnet(state_dim, hidden_dim, self.action_dim).to(device)
         # 使用Adam优化器
-        self.optimizer = torch.optim.Adam(self.q_net.parameters(),
-                                          lr=learning_rate)
+        self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=learning_rate)
         self.gamma = gamma  # 折扣因子
         self.epsilon = epsilon  # epsilon-贪婪策略
         self.target_update = target_update  # 目标网络更新频率
@@ -89,7 +83,7 @@ class DQN:
         if np.random.random() < self.epsilon:
             action = np.random.randint(self.action_dim)
         else:
-            state = torch.tensor([state], dtype=torch.float).to(self.device)
+            state = torch.tensor(state, dtype=torch.float).to(self.device)
             action = self.q_net(state).argmax().item()
         return action
 
@@ -109,11 +103,10 @@ class DQN:
         # 下个状态的最大Q值
         max_next_q_values = self.target_q_net(next_states).max(1)[0].view(
             -1, 1)
-        q_targets = rewards + self.gamma * max_next_q_values * (1 - dones
-                                                                )  # TD误差目标
-        dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))  # 均方误差损失函数
-        self.optimizer.zero_grad()  # PyTorch中默认梯度会累积,这里需要显式将梯度置为0
-        dqn_loss.backward()  # 反向传播更新参数
+        q_targets = rewards + self.gamma * max_next_q_values * (1 - dones)  # TD误差目标
+        dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))
+        self.optimizer.zero_grad()
+        dqn_loss.backward()
         self.optimizer.step()
 
         if self.count % self.target_update == 0:
@@ -124,6 +117,7 @@ class DQN:
 
 class Trainer:
     def __init__(self, cfg):
+        # set_seed(cfg.env)
         self.cfg = cfg
         self.replay_buffer = ReplayBuffer(self.cfg.buffer_size)
         self.agent = DQN(cfg.state_dim, cfg.hidden_dim, cfg.action_dim, cfg.lr,
@@ -132,11 +126,11 @@ class Trainer:
 
     def iterate_one_episode(self):
         episode_return = 0
-        state = self.cfg.env.reset()
+        state = self.cfg.env.reset()[0]
         done = False
         while not done:
             action = self.agent.take_action(state)
-            next_state, reward, done, _ = self.cfg.env.step(action)
+            next_state, reward, done, _, _ = self.cfg.env.step(action)
             self.replay_buffer.add(state, action, reward, next_state, done)
             state = next_state
             episode_return += reward
@@ -160,10 +154,8 @@ class Trainer:
                     self.iterate_one_episode()
                     if (i_episode + 1) % 10 == 0:
                         pbar.set_postfix({
-                            'episode':
-                                '%d' % (num_episodes / 10 * i + i_episode + 1),
-                            'return':
-                                '%.3f' % np.mean(self.return_list[-10:])
+                            'episode': '%d' % (num_episodes / 10 * i + i_episode + 1),
+                            'return': '%.3f' % np.mean(self.return_list[-10:])
                         })
                     pbar.update(1)
 
@@ -182,7 +174,7 @@ class Trainer:
         plt.title('DQN on {}'.format(self.cfg.env_name))
         plt.show()
 
-    def moving_average(a, window_size):
+    def moving_average(self, a, window_size):
         cumulative_sum = np.cumsum(np.insert(a, 0, 0))
         middle = (cumulative_sum[window_size:] - cumulative_sum[:-window_size]) / window_size
         r = np.arange(1, window_size-1, 2)
@@ -204,9 +196,14 @@ class Configs:
     batch_size = 64
     device = torch.device("cuda_programming") if torch.cuda.is_available() else torch.device("cpu")
 
-    env_name = 'CartPole-v0'
+    env_name = 'CartPole-v1'
     env = gym.make(env_name)
     replay_buffer = ReplayBuffer(buffer_size)
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
 
+if __name__ == '__main__':
+    set_seed()
+    trainer = Trainer(Configs())
+    trainer.train_episodes(100)
+    trainer.show_returns()
