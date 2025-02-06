@@ -128,3 +128,19 @@ V = compute_value(P_from_mdp_to_mrp, R_from_mdp_to_mrp, gamma, 5)
 # [[-1.22555411], [-1.67666232], [ 0.51890482], [ 6.0756193 ], [ 0.        ]]
 ```
 
+## 4. 蒙特卡洛方法（Monte-Carlo methods）
+通过使用重复随机抽样，运用概率统计方法来从抽样结果中归纳出想求的目标的数值估计。
+
+![](/imgs/rl/markov/mc.png)
+
+一个状态的价值是它的期望回报，于是用策略在 MDP 上采样很多条序列，计算从这个状态出发的回报再求其期望即可：
+$$V^{\pi}(s) = \mathbb{E}_{\pi}(G_t | S_t=s) \approx \frac{1}{N} \sum_{i=1}^N G_t^{(i)}$$
+
+一般常使用增量更新的方法，即对每个状态 $s$ 和对应回报 $G_t$，进行如下计算：
+$$
+\begin{aligned}
+N(s) &= N(s) + 1 \\
+V(s) &= V(s) + \frac{1}{N(s)} (G-V(s))
+\end{aligned}
+$$
+
