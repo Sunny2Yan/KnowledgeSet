@@ -1,5 +1,5 @@
 import numpy as np
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from envs.cliff_walking import CliffWalkingEnv
@@ -14,6 +14,7 @@ class QLearning:
         self.gamma = gamma  # 折扣因子
         self.epsilon = epsilon  # epsilon-贪婪策略中的参数
 
+        self.env = CliffWalkingEnv(n_row, n_col)
         self.return_list = []  # 记录每一条序列的回报
 
     def take_action(self, state):
@@ -42,11 +43,11 @@ class QLearning:
             with tqdm(total=int(num_episodes / 10), desc='Iteration %d' % i) as pbar:
                 for i_episode in range(int(num_episodes / 10)):  # 每个进度条的序列数
                     episode_return = 0
-                    state = env.reset()
+                    state = self.env.reset()
                     done = False
                     while not done:
                         action = agent.take_action(state)
-                        next_state, reward, done = env.step(action)
+                        next_state, reward, done = self.env.step(action)
                         episode_return += reward  # 这里回报的计算不进行折扣因子衰减
                         agent.update(state, action, reward, next_state)
                         state = next_state
@@ -65,6 +66,21 @@ class QLearning:
         plt.title('Q-learning on {}'.format('Cliff Walking'))
         plt.show()
 
+    def print_agent(self, action_meaning, disaster=[], end=[]):
+        for i in range(self.env.n_row):
+            for j in range(self.env.n_col):
+                if (i * self.env.n_col + j) in disaster:
+                    print('****', end=' ')
+                elif (i * self.env.n_col + j) in end:
+                    print('EEEE', end=' ')
+                else:
+                    a = self.best_action(i * self.env.n_col + j)
+                    pi_str = ''
+                    for k in range(len(action_meaning)):
+                        pi_str += action_meaning[k] if a[k] > 0 else 'o'
+                    print(pi_str, end=' ')
+            print()
+
 
 if __name__ == '__main__':
     np.random.seed(0)
@@ -72,12 +88,11 @@ if __name__ == '__main__':
     alpha = 0.1
     gamma = 0.9
     num_episodes = 500
-    env = CliffWalkingEnv(12, 4)
-    agent = QLearning(env.n_row, env.n_col, epsilon, alpha, gamma)
+
+    agent = QLearning(12, 4, epsilon, alpha, gamma)
     agent.train(num_episodes)
     agent.show_returns()
 
-
-# action_meaning = ['^', 'v', '<', '>']
-# print('Q-learning算法最终收敛得到的策略为：')
-# print_agent(agent, env, action_meaning, list(range(37, 47)), [47])
+    action_meaning = ['^', 'v', '<', '>']
+    print('Q-learning算法最终收敛得到的策略为：')
+    agent.print_agent(action_meaning, list(range(37, 47)), [47])

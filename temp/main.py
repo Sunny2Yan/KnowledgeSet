@@ -25,3 +25,6 @@ def run_torch():
 
 run_cuda() #一个是跑cuda算子
 run_torch() #一个是直接跑torch
+
+
+from transformers import Qwen2Model
