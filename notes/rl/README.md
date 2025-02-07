@@ -9,4 +9,4 @@ reinforcement learning notes
    2) [DP]()
    3) [temporal difference](/codes/rl/q_learning.py)
    4) [Dyna-Q](/codes/rl/dyna_q.py)
-3. 
+3. [DQN](/codes/rl/dqn.py)
