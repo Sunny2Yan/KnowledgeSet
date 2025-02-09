@@ -16,10 +16,8 @@ class DynaQ:
         self.gamma = gamma  # 折扣因子
         self.epsilon = epsilon  # epsilon-贪婪策略中的参数
 
-        self.env = CliffWalkingEnv(n_row, n_col)
         self.n_planning = n_planning  #执行Q-planning的次数
         self.model = dict()  # 环境模型
-        self.return_list = []  # 记录每一条序列的回报
 
     def take_action(self, state):  # 选取下一步的操作
         if np.random.random() < self.epsilon:
@@ -39,7 +37,15 @@ class DynaQ:
             # 随机选择曾经遇到过的状态动作对
             (s, a), (r, s_) = random.choice(list(self.model.items()))
             self.q_learning(s, a, r, s_)
+
+
+class Trainer:
+    def __init__(self, env, agent):
+        self.env = env
+        self.agent = agent
+
     def train(self, num_episodes):
+        return_list = []  # 记录每一条序列的回报
         for i in range(10):  # 显示10个进度条
             with tqdm(total=int(num_episodes / 10), desc='Iteration %d' % i) as pbar:
                 for i_episode in range(int(num_episodes / 10)):  # 每个进度条的序列数
@@ -47,32 +53,35 @@ class DynaQ:
                     state = self.env.reset()
                     done = False
                     while not done:
-                        action = self.take_action(state)
+                        action = self.agent.take_action(state)
                         next_state, reward, done = self.env.step(action)
                         episode_return += reward  # 这里回报的计算不进行折扣因子衰减
-                        self.update(state, action, reward, next_state)
+                        self.agent.update(state, action, reward, next_state)
                         state = next_state
-                    self.return_list.append(episode_return)
+                    return_list.append(episode_return)
                     if (i_episode + 1) % 10 == 0:  # 每10条序列打印一下这10条序列的平均回报
                         pbar.set_postfix({
                             'episode': '%d' % (num_episodes / 10 * i + i_episode + 1),
-                            'return': '%.3f' % np.mean(self.return_list[-10:])
+                            'return': '%.3f' % np.mean(return_list[-10:])
                         })
                     pbar.update(1)
+        return return_list
 
-    def show_returns(self, n_planning_list, num_episodes):
-        for n_planning in n_planning_list:
-            print('Q-planning步数为：%d' % n_planning)
-            time.sleep(0.5)
-            self.n_planning = n_planning
-            self.train(num_episodes)
-            episodes_list = list(range(len(self.return_list)))
-            plt.plot(episodes_list, self.return_list, label=str(n_planning) + ' planning steps')
-        plt.legend()
-        plt.xlabel('Episodes')
-        plt.ylabel('Returns')
-        plt.title('Dyna-Q on {}'.format('Cliff Walking'))
-        plt.show()
+
+def show_returns(n_planning_list, num_episodes):
+    for idx, n_planning in enumerate(n_planning_list):
+        print('Q-planning步数为：%d' % n_planning)
+        time.sleep(0.5)
+        agent.n_planning = n_planning
+        trainer = Trainer(env, agent)
+        return_list = trainer.train(num_episodes)
+        episodes_list = list(range(len(return_list)))
+        plt.plot(episodes_list, return_list, label=str(n_planning) + ' planning steps')
+    plt.legend()
+    plt.xlabel('Episodes')
+    plt.ylabel('Returns')
+    plt.title('Dyna-Q on {}'.format('Cliff Walking'))
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -83,5 +92,6 @@ if __name__ == '__main__':
     gamma = 0.9
     num_episodes = 300
     n_planning_list = [0, 2, 20]
+    env = CliffWalkingEnv(n_row, n_col)
     agent = DynaQ(n_row, n_col, epsilon, alpha, gamma, 2)
-    agent.show_returns(n_planning_list, num_episodes)
+    show_returns(n_planning_list, num_episodes)

@@ -88,21 +88,15 @@ class DQN:
         return action
 
     def update(self, transition_dict):
-        states = torch.tensor(transition_dict['states'],
-                              dtype=torch.float).to(self.device)
-        actions = torch.tensor(transition_dict['actions']).view(-1, 1).to(
-            self.device)
-        rewards = torch.tensor(transition_dict['rewards'],
-                               dtype=torch.float).view(-1, 1).to(self.device)
-        next_states = torch.tensor(transition_dict['next_states'],
-                                   dtype=torch.float).to(self.device)
-        dones = torch.tensor(transition_dict['dones'],
-                             dtype=torch.float).view(-1, 1).to(self.device)
+        states = torch.tensor(transition_dict['states'], dtype=torch.float).to(self.device)
+        actions = torch.tensor(transition_dict['actions']).view(-1, 1).to(self.device)
+        rewards = torch.tensor(transition_dict['rewards'], dtype=torch.float).view(-1, 1).to(self.device)
+        next_states = torch.tensor(transition_dict['next_states'], dtype=torch.float).to(self.device)
+        dones = torch.tensor(transition_dict['dones'], dtype=torch.float).view(-1, 1).to(self.device)
 
         q_values = self.q_net(states).gather(1, actions)  # Q值
         # 下个状态的最大Q值
-        max_next_q_values = self.target_q_net(next_states).max(1)[0].view(
-            -1, 1)
+        max_next_q_values = self.target_q_net(next_states).max(1)[0].view(-1, 1)
         q_targets = rewards + self.gamma * max_next_q_values * (1 - dones)  # TD误差目标
         dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))
         self.optimizer.zero_grad()
@@ -110,14 +104,12 @@ class DQN:
         self.optimizer.step()
 
         if self.count % self.target_update == 0:
-            self.target_q_net.load_state_dict(
-                self.q_net.state_dict())  # 更新目标网络
+            self.target_q_net.load_state_dict(self.q_net.state_dict())  # 更新目标网络
         self.count += 1
 
 
 class Trainer:
     def __init__(self, cfg):
-        # set_seed(cfg.env)
         self.cfg = cfg
         self.replay_buffer = ReplayBuffer(self.cfg.buffer_size)
         self.agent = DQN(cfg.state_dim, cfg.hidden_dim, cfg.action_dim, cfg.lr,
@@ -186,7 +178,7 @@ class Trainer:
 @dataclass
 class Configs:
     lr = 2e-3
-    num_episodes = 500
+    num_episodes = 200
     hidden_dim = 128
     gamma = 0.98
     epsilon = 0.01
@@ -201,6 +193,7 @@ class Configs:
     replay_buffer = ReplayBuffer(buffer_size)
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
+
 
 if __name__ == '__main__':
     set_seed()

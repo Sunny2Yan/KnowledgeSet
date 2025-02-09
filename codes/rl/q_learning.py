@@ -14,9 +14,6 @@ class QLearning:
         self.gamma = gamma  # 折扣因子
         self.epsilon = epsilon  # epsilon-贪婪策略中的参数
 
-        self.env = CliffWalkingEnv(n_row, n_col)
-        self.return_list = []  # 记录每一条序列的回报
-
     def take_action(self, state):
         """选取下一步的操作"""
         if np.random.random() < self.epsilon:
@@ -38,10 +35,19 @@ class QLearning:
         td_error = r + self.gamma * self.Q_table[s1].max() - self.Q_table[s0, a0]
         self.Q_table[s0, a0] += self.alpha * td_error
 
-    def train(self, num_episodes):
+
+class Trainer:
+    def __init__(self, env, agent, num_episodes):
+        self.env = env
+        self.agent = agent
+        self.num_episodes = num_episodes
+
+        self.return_list = []  # 记录每一条序列的回报
+
+    def train(self):
         for i in range(10):  # 显示10个进度条
-            with tqdm(total=int(num_episodes / 10), desc='Iteration %d' % i) as pbar:
-                for i_episode in range(int(num_episodes / 10)):  # 每个进度条的序列数
+            with tqdm(total=int(self.num_episodes / 10), desc='Iteration %d' % i) as pbar:
+                for i_episode in range(int(self.num_episodes / 10)):  # 每个进度条的序列数
                     episode_return = 0
                     state = self.env.reset()
                     done = False
@@ -74,7 +80,7 @@ class QLearning:
                 elif (i * self.env.n_col + j) in end:
                     print('EEEE', end=' ')
                 else:
-                    a = self.best_action(i * self.env.n_col + j)
+                    a = self.agent.best_action(i * self.env.n_col + j)
                     pi_str = ''
                     for k in range(len(action_meaning)):
                         pi_str += action_meaning[k] if a[k] > 0 else 'o'
@@ -89,10 +95,12 @@ if __name__ == '__main__':
     gamma = 0.9
     num_episodes = 500
 
-    agent = QLearning(12, 4, epsilon, alpha, gamma)
-    agent.train(num_episodes)
-    agent.show_returns()
+    env = CliffWalkingEnv(12, 4)
+    agent = QLearning(env.n_row, env.n_col, epsilon, alpha, gamma)
+    trainer = Trainer(env, agent, num_episodes)
+    trainer.train()
+    trainer.show_returns()
 
     action_meaning = ['^', 'v', '<', '>']
     print('Q-learning算法最终收敛得到的策略为：')
-    agent.print_agent(action_meaning, list(range(37, 47)), [47])
+    trainer.print_agent(action_meaning, list(range(37, 47)), [47])
