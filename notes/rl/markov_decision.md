@@ -131,12 +131,12 @@ $$Q^{\pi}(s, a) = r(s, a) + \gamma \sum_{s'\in S}P(s'|s, a) V^{\pi}(s')$$
 ### 3.3 贝尔曼期望方程（Bellman Expectation Equation）
 
 $$
-\begin{align}
+\begin{aligned}
 V^{\pi}(s) &= \mathbb{E}_{\pi}[R_t + \gamma V^{\pi}(S_{t+1}) \mid S_t = s] \\
 &= \sum_{a \in A} \pi(a|s) \left(r(s,a) + \gamma \sum_{s' \in S} p(s'|s,a) V^{\pi}(s') \right) \\
 Q^{\pi}(s,a) &= \mathbb{E}_{\pi}[R_t + \gamma Q^{\pi}(S_{t+1},A_{t+1}) \mid S_t = s, A_t = a] \\
 &= r(s,a) + \gamma \sum_{s' \in S} p(s'|s,a) \sum_{a' \in A} \pi(a'|s') Q^{\pi}(s',a').
-\end{align}
+\end{aligned}
 $$
 
 ### 3.4 最优策略（optimal policy）
