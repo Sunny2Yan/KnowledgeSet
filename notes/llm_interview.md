@@ -407,3 +407,16 @@ BIG-Bench：综合评测体系。(QA，单选)；
 HELM：一个全面而系统 的评估体系。（QA，单选）
 C-Eval：一个专门为中文大语言模型设计的综合评测体系。(单选)
 CMMLU、AGIEval、MMCU、M3KE和Xiezhi等。 
+
+
+transformer维度变化:
+
+设 seq_len = s，vocab_size=v 则
+embedding: (s, d_model)
+q,k,v: (s, hidden_size)
+q*k^T: (s, s)
+attn: (s, hidden_size)
+multi_head: (s, d_model)
+MLP: (s, d_model) -> (s, d_imd) -> (s, d_model)
+output: (s, v)
+softmax: (s, v)

@@ -1,4 +1,4 @@
-# Position Embedding
+# 其中，$q_m=x_mW_q,k_n=x_nW_n$。Position Embedding
 
 位置编码是在序列数据中为每个位置添加位置信息。在nlp中，位置编码通常用于处理文本序列，可以帮助模型更好地理解和处理序列数据。
 Transformer中，通过为每个位置分配一个固定的向量来实现，其设计目的是使模型能够区分不同位置的输入。
@@ -24,10 +24,12 @@ $$
 通过使用不同频率的正弦和余弦函数，位置编码可以捕捉到不同位置之间的相对距离和顺序。
 
 对于 self attention 中第 i 个单词和第 j 个单词的 attention score 为:
+
 $$
 A_{i,j}^{abs}=(E_{x_i}+P_i)W_q[(E_{x_j}+P_j)W_k]^T  \\
 =E_{x_i}W_qW_k^TE_{x_j}^T+E_{x_i}W_qW_k^TP_j^T+P_iW_qW_k^TE_{x_j}^T+P_iW_qW_k^TP_j^T
 $$
+
 其中，第一项与位置编码无关，中间两项都只有一个位置的向量，所以也不包含相对位置信息，只有最后一项最有可能包含相对位置信息。
 
 ## 2. 相对位置编码
@@ -39,24 +41,141 @@ $$
 
 旋转位置编码（Rotation Position Encoding，RoPE）是通过引入旋转矩阵来表示位置之间的旋转关系，从而捕捉序列中位置之间的旋转模式。
 
-假设通过某个运算 $f(\cdot,m), f(\cdot, n)$ 来给 $q, k$ 添加绝对位置信息：
+假设通过某个运算 $f_q(\cdot,pos), f_k(\cdot, pos)$ 来给 $q, k$ 添加绝对位置信息：
 
 $$
-\tilde{q}_m=f(q, m);~~\tilde{k}_n=f(k, n)
+q_m=f_q(q, m);~~k_n=f_k(k, n)
 $$
 
-是的经过运算后 $\tilde{q}_m,\tilde{k}_n$ 带有位置 $m, n$ 的绝对位置信息。经过 Attention 的内积运算后带有相对位置信息：
+经过运算后 $q_m,k_n$ 带有位置 $m, n$ 的绝对位置信息。经过 Attention 的内积运算后带有相对位置信息：
 
 $$
-\langle f(q, m),~f(k, n)\rangle =g(q, k, m-n)
+\langle f_q(q, m),~f_k(k, n)\rangle =g(q, k, m-n)
 $$
 
-且需要满足初始条件：$f(q, 0)=q; f(k, 0)=k$。
+借助复数运算，令 $f_q(x_m, m)=q_me^{im\theta};f_k(x_n, n)=k_ne^{in\theta}$，对于sequence中的第 $m$ 个token，假设hidden_size=2,则：
 
-借助复数中 $\langle q, k\rangle=\mathrm{Re}(qk^H)$ 来求解，即 $\mathrm{Re}[f(q, m)f^{H}(k, n)]=g(q, k, m-n)$。对于二维形式的$q, k$都有：
+$$
+\begin{aligned}
+q_me^{im\theta} &= (q_m^1, q_m^2)e^{im\theta}  \\
+&= (q_m^1 + iq_m^2)(\cos m\theta + i\sin m\theta)  \\
+&= (q_m^1\cos m\theta - q_m^2\sin m\theta) + i(q_m^1\sin m\theta + q_m^2 \cos m\theta)  \\
+&= (q_m^1\cos m\theta - q_m^2\sin m\theta,~ q_m^1\sin m\theta + q_m^2 \cos m\theta) \\
+&= (q_m^1, q_m^2) \left(
+\begin{matrix}
+\cos m\theta & \sin m\theta \\
+-\sin m\theta & \cos m\theta
+\end{matrix}
+\right) \\
+&= \left[
+\left(\begin{matrix}
+\cos m\theta & -\sin m\theta \\
+\sin m\theta & \cos m\theta
+\end{matrix}\right)
+\left(\begin{matrix}
+q_m^1 \\
+q_m^2
+\end{matrix}\right)
+\right]^T
+\end{aligned}
+$$
+
+其中，$q_m=x_mW_q,k_n=x_nW_n$。同理可以计算 $k_ne^{in\theta}$：
+
+$$
+k_ne^{in\theta} =
+\left[
+\left(\begin{matrix}
+\cos n\theta & -\sin n\theta \\
+\sin n\theta & \cos n\theta
+\end{matrix}\right)
+\left(\begin{matrix}
+k_n^1 \\
+k_n^2
+\end{matrix}\right)
+\right]^T
+$$
+
+于是有：
+
+$$
+\begin{aligned}
+q_me^{im\theta}(k_ne^{in\theta})^T &= 
+\left[
+\left(\begin{matrix}
+\cos m\theta & -\sin m\theta \\
+\sin m\theta & \cos m\theta
+\end{matrix}\right)
+\left(\begin{matrix}
+q_m^1 \\
+q_m^2
+\end{matrix}\right)
+\right]^T
+\left(\begin{matrix}
+\cos n\theta & -\sin n\theta \\
+\sin n\theta & \cos n\theta
+\end{matrix}\right)
+\left(\begin{matrix}
+k_n^1 \\
+k_n^2
+\end{matrix}\right) \\
+&=
+\left(\begin{matrix}
+q_m^1 & q_m^2
+\end{matrix}\right)
+\left(\begin{matrix}
+\cos m\theta\cos n\theta + \sin m\theta\sin n\theta & -\cos m\theta\sin n\theta + \sin m\theta\cos n\theta \\
+-\sin m\theta\cos n\theta + \cos m\theta\sin n\theta & \sin m\theta\sin n\theta + \cos m\theta\cos n\theta
+\end{matrix}\right)
+\left(\begin{matrix}
+k_n^1 \\
+k_n^2
+\end{matrix}\right)  \\
+&=
+\left(\begin{matrix}
+q_m^1 & q_m^2
+\end{matrix}\right)
+\left(\begin{matrix}
+\cos (m-n)\theta & \sin (m-n)\theta \\
+-\sin (m-n)\theta & \cos (m-n)\theta
+\end{matrix}\right)
+\left(\begin{matrix}
+k_n^1 \\
+k_n^2
+\end{matrix}\right)
+\end{aligned}
+$$
+
+对于 $g(q, k, m-n)$：
+
+$$
+\begin{aligned}
+g(x_m, x_n, m-n) &= \mathrm{Re}[q_mk_n^He^{i(m-n)\theta}]  \\
+&= \mathrm{Re}[(q_m^1+iq_m^2)(k_n^1-ik_n^2)(\cos(m-n)\theta+i\sin(m-n)\theta)]  \\
+&= \mathrm{Re}[(q_m^1k_n^1 + q_m^2k_n^2) + i(q_m^2k_n^1 - q_m^1k_m^2)(\cos(m-n)\theta + i\sin(m-n)\theta)]  \\
+&= (q_m^1k_n^1 + q_m^2k_n^2)\cos(m-n)\theta + (q_m^1k_m^2 - q_m^2k_n^1)\sin(m-n)\theta  \\
+&= (q_m^1\cos(m-n)\theta - q_m^2\sin(m-n)\theta)k_n^1 + (q_m^2\cos(m-n)\theta + q_m^1\sin(m-n)\theta)k_n^2  \\
+&= 
+\left(\begin{matrix}
+q_m^1 & q_m^2
+\end{matrix}\right)
+\left(\begin{matrix}
+\cos (m-n)\theta & \sin (m-n)\theta \\
+-\sin (m-n)\theta & \cos (m-n)\theta
+\end{matrix}\right)
+\left(\begin{matrix}
+k_n^1 \\
+k_n^2
+\end{matrix}\right)  \\
+&= q_me^{im\theta}(k_ne^{in\theta})^T
+\end{aligned}
+$$
+
+因此，对于二维形式的$q, k$都有：
 
 $$
 f(x_m, m)=
+\left[
 \left(
 \begin{matrix} 
 \cos m\theta & -\sin m\theta  \\
@@ -72,16 +191,17 @@ W_{21} & W_{22}
 \right)
 \left(
 \begin{matrix} 
-x_1  \\
-x_2
+x_m^1  \\
+x_m^2
 \end{matrix}
 \right)
+\right]^T
 $$
 
-即，相当于在 $(x_1, x_2)$ 处旋转了 $m\theta$ 度角到 ($x_1^{'}, x_2^{'}$)。而对于 d 维向量有：
+即，相当于在 $(x_m^1, x_m^2)$ 处旋转了 $m\theta$ 度角到 ($x_m^{1'}, x_m^{2'}$)。而对于 d 维向量有：
 
 $$
-f(x_m, x) = R_{\theta, m}^{d}Wx_m  \\
+f(x_m, m) = (R_{\theta, m}^{d}Wx_m^T)^T  \\
 R_{\theta, m}^{d} = 
 \left(
 \begin{matrix} 
@@ -96,10 +216,15 @@ R_{\theta, m}^{d} =
 \right)
 $$
 
-其中，$\theta_i=10000^{-2(i-1)/d}, i\in [1, 2, \cdots, d/2]$。为了减少计算量，对 $R_{\theta, m}^{d}$ 做出变形：
+其中，$\theta_i=10000^{-2(i-1)/d}, i\in [1, 2, \cdots, d/2]$。对于 $q_mk_n^T$ 有：
+$$
+q_mk_n^T = (R_{\theta, m}^{d}W_qx_m^T)^T[(R_{\theta, n}^{d}W_kx_m^T)^T]^T = x_mW_q^T(R_{\theta, m-n}^{d})^TW_kx_n^T
+$$
+
+为了减少计算量，对 $R_{\theta, m}^{d}$ 做出变形：
 
 $$
-R_{\theta, m}^{d} = 
+R_{\theta, m}^{d}x = 
 \left(
 \begin{matrix} 
 x_1 \\
@@ -155,12 +280,30 @@ $$
 
 $$
 \begin{aligned}
-<q_m, k_n> &= Re[q_mk_n^H]  \\
-&= Re[e^{i(m-n)\theta_0} + e^{i(m-n)\theta_1} + \cdots + e^{i(m-n)\theta_{d/2-1}}]  \\
-&= Re[\sum_{k=0}^{d/2-1}e^{i(m-n)\theta_{-k/(d/2)}}]  \\
-&\sim \frac{d}{2}\cdot Re[\int_0^1e^{i(m-n)\cdot 10000^{-t}}dt]
+<q_m, k_n> &= \mathrm{Re}[q_mk_n^He^{i(m-n)\theta}]  \\
+&= \mathrm{Re}\left[\sum_{i=0}^{d/2-1}q_{[2i:2i+1]}k_{[2i:2i+1]}^He^{i(m-n)\theta_i}\right]  \\
 \end{aligned}
 $$
+
+定义 $h_i = q_{[2i:2i+1]}k_{[2i:2i+1]}^H, S_j = \sum_{i=0}^{j-1}e^{i(m-n)\theta_i}$，令 $h_{d/2}=0, S_0=0$，根据Abel变换有：
+$$
+\begin{aligned}
+\left|\sum_{i=0}^{d/2-1}q_{[2i:2i+1]}k_{[2i:2i+1]}^He^{i(m-n)\theta_i}\right| 
+&= \left|\sum_{i=0}^{d/2-1}h_i(S_{i+1} - S_i)\right|  \\
+&= \left|-\sum_{i=0}^{d/2-1}S_{i+1}(h_{i+1} - h_i)\right|  \\
+&\leq \sum_{i=0}^{d/2-1} |S_{i+1}||h_{i+1}-h_i|  \\
+&\leq (\max_{i}|h_{i+1} - h_i|) \sum_{i=0}^{d/2-1}|s_{i+1}|
+\end{aligned}
+$$
+
+补充知识点 Abel 变换：
+
+约定 $b_0=0$，记 $B_n = b_0 + b_1 + \cdots + b_n$，于是有：
+$$
+\sum_{i=0}^{n} a_ib_i = \sum_{i=0}^{n}a_i(B_i - B_{i-1}) = 。。。
+$$
+
+注意到 $\sum_{i=0}^{d/2-1}|s_{i+1}|$ 随着 $\theta_i$ 的增加而衰减。
 
 **RoPE的优点**：
 
@@ -229,6 +372,7 @@ $$
    $$
 
    其中，最低频是 $\frac{n}{\beta^{d/2−1}}$ 项，引入参数 $\lambda$ 变为 $\frac{n}{(\beta\lambda)^{d/2−1}}$ ，使其与内插一致，即：
+
    $$
    \frac{n}{(\beta\lambda)^{d/2−1}} = \frac{n/k}{\beta^{d/2−1}}
    $$
@@ -242,6 +386,7 @@ $$
    $$
 
    其中，需要w小于训练长度。当 $k\rightarrow \infty$ 时，有：
+
    $$
    [0, 1, \cdots, w, w, w, \cdots, w]
    $$
