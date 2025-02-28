@@ -40,11 +40,13 @@ $$
 V(s) &= \mathbb{E} [G_t | S_t=s] \\
 &= \mathbb{E} [R_t + \gamma R_{t+1} + \gamma ^2 R_{t+2} + \cdots | S_t=s] \\
 &= \mathbb{E} [R_t + \gamma G_{t+1} | S_t=s] \\
+&= \mathbb{E} [R_t + \gamma\mathbb{E}[G_{t+1} | S_{t+1}] | S_t=t]~~~~(G_{t+1} 仅依赖于 S_{t+1}) \\
 &= \mathbb{E} [R_t + \gamma V(S_{t+1}) | S_t=s]
 \end{aligned}
 $$
 
-因此，奖励函数的输出可以分成两个部分，一部分为即时奖励的输出，也就是奖励函数的输出 $R_t$；另一部分，等式中剩余部分 $\mathbb{E} [\gamma V(S_{t+1}) | S_t=s]$ 可以根据从状态出发的转移概率得到，于是可以写成：
+因此，奖励函数的输出可以分成两个部分，一部分为即时奖励的输出，也就是奖励函数的输出 $R_t$；另一部分，等式中剩余部分 $\mathbb{E} [\gamma V(S_{t+1}) | S_t=s]$ 可以根据从状态出发的转移概率得到，于是可以写成
+（补充知识点：$\mathbb{E}[f(X) | Y=y] = \int_{-\infty}^{\infty} f(x) \cdot p(x|y) \, dx$）：
 
 $$V(s) = r(s) + \gamma \sum_{s' \in S} p(s'|s) V(s')$$
 

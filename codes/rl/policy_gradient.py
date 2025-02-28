@@ -13,7 +13,6 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 from typing import Optional
-from tensorboardX import SummaryWriter
 from torch.distributions import Categorical
 
 Tensor = torch.Tensor
@@ -50,7 +49,6 @@ class PolicyGradient(object):
         # print("env.observation_space: ", self.env.observation_space.shape[0])
         # print("env.observation_space.high: ", self.env.observation_space.high)
         # print("env.observation_space.low: ", self.env.observation_space.low)
-        self.writer = SummaryWriter(comment="-cartpole-pg")
         self.device = torch.device("cuda_programming:0" if torch.cuda.is_available() else "cpu")
 
         self.policy = Policy(self.env.observation_space.shape[0], 16,
@@ -152,21 +150,15 @@ class PolicyGradient(object):
             total_loss.backward()
             self.optimizer.step()
 
-            self.writer.add_scalar("baseline", baseline, episode)
-            self.writer.add_scalar("policy_loss", policy_loss.item(), episode)
-            self.writer.add_scalar("entropy_loss", entropy_loss.item(), episode)
-            self.writer.add_scalar("total_loss", total_loss.item(), episode)
             recent_reward = np.mean(total_rewards[-100:])
             if episode % 100 == 0:
                 print('Episode {}\tAverage Score: {:.2f}'.format(
                     episode, recent_reward))
-                self.writer.add_scalar("reward_100", recent_reward, episode)
             if recent_reward >= 195.0:
                 print('Environment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(
                     episode - 100, recent_reward))
                 break
 
-        self.writer.close()
         torch.save(self.policy.state_dict(), 'models/pg_checkpoint.pt')
 
         return total_rewards

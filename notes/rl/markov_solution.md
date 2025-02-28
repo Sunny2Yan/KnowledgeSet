@@ -140,11 +140,12 @@ $$V^{\pi}(s) = \mathbb{E}_{\pi}(G_t | S_t=s) \approx \frac{1}{N} \sum_{i=1}^N G_
 $$
 \begin{aligned}
 N(s) &= N(s) + 1 \\
-V(s) &= V(s) + \frac{1}{N(s)} (G-V(s))
+V(s) &= V(s) + \frac{1}{N(s)} (G_t-V(s))
 \end{aligned}
 $$
 
 ## 5. 动态规划
+
 
 ## 6. 时序差分
 动态规划算法要求马尔可夫决策过程是已知的，即要求与智能体交互的环境是完全已知的。这就不需要采样数据点，直接求出最优解。
