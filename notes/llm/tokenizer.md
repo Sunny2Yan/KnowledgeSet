@@ -27,13 +27,19 @@ for example:
     3) 迭代至达到预设的词表大小，或最高词频出现频率为1
  ```
 
-### 1.2 WordPiece(Bert)
+### 1.2 Byte-level BPE（deepseek,llama）
+（补充：ASCII只能覆盖英文中字符，UTF-8是一套所有语言通用的编码）
+BPE进阶版。对于中文、日文等语言，其稀有的字符可能会占用不必要的词汇表。具体的，BBPE考虑将一段文本的UTF-8编码中的一个字节256位不同的编码作为词表的初始化基础Subword
+
+合并过程和BPE一致、也是选取出现频数最高的字符对进行合并。
+
+### 1.3 WordPiece(Bert)
 
 WordPiece本质是同BPE，但在每次merge时，BPE选择频数最高的相邻子词合并，而WordPiece是计算词对出现的得分，将得分最大的词对进行合并。
 
 $$score=\frac{词对出现的频率}{第一个词出现的频率 \times 第二个词出现的频率}$$
 
-### 1.3 ULM--Unigram Language Model(T5)
+### 1.4 ULM--Unigram Language Model(T5)
 
 先初始化一个大词表，根据评估准则不断丢弃词表，直到满足限定条件.
 对于句子S，$x=(x_1, x_2, \cdots, x_n)$ 为句子的一个分词结果，由 $n$ 个子词组成。则当前分词下句子 $S$ 的似然值可以表示为：
@@ -50,7 +56,7 @@ $$
 
 ...
 
-### 1.4 SentencePiece (T5, llama)
+### 1.5 SentencePiece (T5, llama)
 SentencePiece是一种分割子词的方法，它可以选择 BPE 或其他分词算法作为 SentencePiece 的模型来合并子词。
 
 上述三种方法都有一个前提：输入以空格来区分，但很多语言的词语无法使用空格进行区分（eg:中文），

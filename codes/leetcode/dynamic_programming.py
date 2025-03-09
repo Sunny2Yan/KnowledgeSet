@@ -21,6 +21,15 @@ class FstDP(object):
         return dp[2]
 
     @staticmethod
+    def climb_stairs2(n: int) -> int:
+        """爬楼梯2
+        (leetcode 70) 每次可以爬 1<=m<n阶，有多少种爬法。
+        思路：, 递归 2^n。
+        时O(n) 空O(1)
+        """
+        ...
+
+    @staticmethod
     def max_sub_array(nums: list[int]) -> int:
         """连续子数组的最大和
         (leetcode 53; 剑指offer 42) 找最大和的连续子数组，并返回最大和。

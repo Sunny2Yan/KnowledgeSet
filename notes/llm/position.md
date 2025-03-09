@@ -1,4 +1,4 @@
-# 其中，$q_m=x_mW_q,k_n=x_nW_n$。Position Embedding
+# Position Embedding
 
 位置编码是在序列数据中为每个位置添加位置信息。在nlp中，位置编码通常用于处理文本序列，可以帮助模型更好地理解和处理序列数据。
 Transformer中，通过为每个位置分配一个固定的向量来实现，其设计目的是使模型能够区分不同位置的输入。
@@ -14,10 +14,11 @@ Transformer中，通过为每个位置分配一个固定的向量来实现，其
 这种位置编码具有一个较大的缺陷，即不具备外推性能，一旦在infer时的序列长度超过了train阶段的长度，它的位置信息就位于模型的盲区。
 
 ### 1.2 三角编码 (transformer)
-
 $$
-PE(pos, 2i) = sin(pos / 10000^{(2i/d_{model})}) \\
-PE(pos, 2i+1) = cos(pos / 10000^{(2i/d_{model})})
+\begin{aligned}
+\mathbb{PE}(pos, 2i) &= sin(pos / 10000^{(2i/d_{model})}) \\
+\mathbb{PE}(pos, 2i+1) &= cos(pos / 10000^{(2i/d_{model})})
+\end{aligned}
 $$
 
 其中，pos表示位置，i表示维度，$d_{model}$表示模型隐藏层的维度。
@@ -378,6 +379,7 @@ $$
    $$
 
    解得 $\lambda=k^{2/(d−2)}$，code直接修改base `base = base * 8 ** (dim / (dim-2))`
+
 4. rerope
    按照高频外推、低频内插的思想，设定一个窗口大小w，在窗口内使用大小为1的位置间隔，在窗口外使用大小为1/k的位置间隔，即:
 

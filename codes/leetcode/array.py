@@ -6,7 +6,7 @@ class FindArray(object):
     def find_number(nums: list[int], target: int) -> int:
         """查找有序列表中目标数字重复次数
         （剑指offer 53）二分法，定义一个函数 $f$ 来找到第一个大于target的索引，然后根据
-        $f(target) - f(target - 1)$ 即可。
+        $f(target) - f(target - 1)$ 即可。 [1,2,3,3,4,4,5]
         时O(logn), 空O(1)
         """
         def __find(tar):
@@ -40,7 +40,7 @@ class FindArray(object):
     def find_loss_number(nums: list[int]) -> int:
         """查找 0~n-1 中缺失的数字
         （剑指offer 53）二分法，若中间数字的值等于索引，则右侧缺失，否则左侧缺失，由于每次先判断
-        left，最终只需返回left即可。也可以前n项和直接算。
+        left，最终只需返回left即可。也可以前n项和直接算。 [0,1,2,3,4,6,7,8,9]
         时O(logn), 空O(1)
         """
         left, right = 0, len(nums) - 1
