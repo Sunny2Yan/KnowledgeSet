@@ -27,7 +27,7 @@ torch.load(file.pt, map_location=torch.device('cuda_programming'/'cuda_programmi
 
 ### 1.1  `nn.DataParallel()`
 
-缺点：单进程，效率慢；不支持多机；不支持模型并行。其中 batch_size 为多张卡的总和。
+缺点：单进程，效率慢；不支持多机；不支持模型并行。其中 batch_size 为多张卡的总和，**通信量与GPU数呈线性关系**。
 
 ```python
 device_ids = [0, 1]  # 1. 数据并行
@@ -52,6 +52,32 @@ net = net.module
 `output_device`: 参数表示输出结果的 device，一般情况下省略不写，即默认在 device_ids[0]上，因此第一块卡的显存较其他卡会占用的更多一些。即，output loss 每次都会在第一块GPU相加计算，造成了第一块 GPU 的负载远远大于剩余其他的显卡。
 
 ### 1.2 `DistributionDataParallel()`
+
+DDP 采用多进程，每个进程在一张卡上加载一个模型，通信采用 Ring-Reduce，具体如下：
+
+![](/imgs/parallel/ring_reduce.png)
+
+1. Scatter-Reduce：GPU 将交换数据，以便每个 GPU 都会得到一个最终结果的块;
+![](/imgs/parallel/scatter_1.png)
+![](/imgs/parallel/scatter_2.png)
+![](/imgs/parallel/scatter_3.png)
+![](/imgs/parallel/scatter_4.png)
+![](/imgs/parallel/scatter_5.png)
+
+![](/imgs/rl/markov/mc.png)
+
+2. allgather：GPU 将交换完整的块，使所有 GPU 获得完整的最终结果。
+![](/imgs/parallel/allgater_1.png)
+![](/imgs/parallel/allgater_2.png)
+![](/imgs/parallel/allgater_3.png)
+![](/imgs/parallel/allgater_4.png)
+![](/imgs/parallel/allgater_5.png)
+
+N 个 GPU 中的每一个都将发送和接收 scatter-reduce 值 N-1 次，allgather 值 N-1 次。
+每次，GPU 都会发送 K / N 值，其中 K 是不同 GPU 之间相加的数组中的值总数。
+因此，传入和传出每个 GPU 的数据总量为:
+
+$$Data Transferred = 2(N-1)\frac{K}{N}$$
 
 `torch.nn.parallel.DistributedDataParallel()`
 

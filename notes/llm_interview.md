@@ -404,7 +404,7 @@ res = chat(messages)
 ## 问题五：测评
 MMLU：综合性的大规模评测数据集。(单选，四选一，[问题：xxx; 选项：xxx；答案：A])；
 BIG-Bench：综合评测体系。(QA，单选)；
-HELM：一个全面而系统 的评估体系。（QA，单选）
+HELM：一个全面而系统的评估体系。（QA，单选）
 C-Eval：一个专门为中文大语言模型设计的综合评测体系。(单选)
 CMMLU、AGIEval、MMCU、M3KE和Xiezhi等。 
 
