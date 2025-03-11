@@ -39,14 +39,14 @@ l(x) := \sum_{i}f(x)_i, ~~~~
 softmax(x) := \frac{f(x)}{l(x)}
 $$
 
-对于向量 $x^(1), x^(2) \in \mathbb{R}^B$，$x=[x^{(1)}, x^{(2)}] \in \mathbb{R}^{2B}$，计算 softmax 如下：
+对于向量 $x^{(1)}, x^{(2)} \in \mathbb{R}^B$，$x=[x^{(1)}, x^{(2)}] \in \mathbb{R}^{2B}$，计算 softmax 如下：
 $$
-\begin{align}
+\begin{aligned}
 m(x) &= m(x^{(1)}, x^{(2)}) = \max(m(x^{(1)}), m(x^{(2)})), ~~~~
 f(x) = [e^{m(x^{(1)}) - m(x)}f(x^{(1)}), e^{m(x^{(2)}) - m(x)}f(x^{(2)})], \\
 l(x) &= l([x^{(1)}, x^{(2)}]) = e^{m(x^{(1)}) - m(x)}l(x^{(1)}) + e^{m(x^{(2)}) - m(x)}l(x^{(2)}), ~~~~
 softmax(x) = \frac{f(x)}{l(x)}
-\end{align}
+\end{aligned}
 $$
 
 注意：减 $m(x)$，是为了数值稳定，结果保持不变
