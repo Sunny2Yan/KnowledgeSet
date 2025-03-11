@@ -21,13 +21,33 @@ class FstDP(object):
         return dp[2]
 
     @staticmethod
-    def climb_stairs2(n: int) -> int:
+    def climb_stairs2(n: int, m: int) -> int:
         """爬楼梯2
         (leetcode 70) 每次可以爬 1<=m<n阶，有多少种爬法。
-        思路：, 递归 2^n。
+        思路：动态规划：dp[i]=dp[i−1]+dp[i−2]+...+dp[i−m]。 由于 dp[i] 依赖 前 m 个状态，可以维护一个滑动窗口 sum(dp[i-m] ... dp[i-1]) 来减少嵌套循环。
         时O(n) 空O(1)
         """
-        ...
+        if n <= 0:
+            return 0
+
+        dp = [0] * (n + 1)
+        dp[0] = 1  # 只有一种方式不动
+
+        # dp 思路
+        # for i in range(1, n + 1):
+        #     for j in range(1, m + 1):
+        #         if i - j >= 0:
+        #             dp[i] += dp[i - j]
+
+        window_sum = 1  # 维护滑动窗口之和
+
+        for i in range(1, n + 1):
+            dp[i] = window_sum
+            if i >= m:
+                window_sum -= dp[i - m]  # 移出窗口最左侧
+            window_sum += dp[i]  # 加入新值
+
+        return dp[n]
 
     @staticmethod
     def max_sub_array(nums: list[int]) -> int:
